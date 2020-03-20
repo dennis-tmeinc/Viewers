@@ -24,22 +24,27 @@ option:
 -a		add a administrator
 */
 
-#define DLL_API __declspec(dllimport)
 
 #define MAXUSER	1000
 #define IDUSER	101
 #define IDADMIN	102
 
+#define DLL_API __declspec(dllimport)
+
+#ifdef __cplusplus
 extern "C" {
-	DLL_API int SetStorage(char * storage);
-	DLL_API int DeleteID(char * id);
+#endif
+	DLL_API int SetStorage(const char * storage);
+	DLL_API int DeleteID(const char * id);
 	DLL_API int ListID(int index, char * id);
-	DLL_API int AddID(char * id, DWORD * key, int idtype);
-	DLL_API int CheckID(char * id, DWORD * key);
-	DLL_API void PasswordToKey(char * password, DWORD *key);
+	DLL_API int AddID(const char * id, DWORD * key, int idtype);
+	DLL_API int CheckID(const char * id, DWORD * key);
+	DLL_API void PasswordToKey(const char * password, DWORD *key);
 	DLL_API void Encode(char * v, int size);
 	DLL_API void Decode(char * v, int size);
+#ifdef __cplusplus
 }
+#endif
 
 const char keygenid[] = "d735179a-d47a-47f9-97b4-a400744ef034";
 

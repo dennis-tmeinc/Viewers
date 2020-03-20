@@ -4,9 +4,19 @@
 #include "../common/cwin.h"
 #include "../common/util.h"
 
-#include "cJSON.h"
-
 #include "decoder.h"
+
+#define SCREENMODE_AUTO		(10000)
+// restore to previous mode
+#define SCREENMODE_RESTORE	(10001)			
+#define SCREENMODE_SINGLE	(10002)
+#define SCREENMODE_SUBVIEW	(10003)
+
+#define TIMEBARCACHESIZE (1)
+#define MAX_BLUR_AREA   (10)
+
+#define TIMER_BLUR_AGAIN	(301)
+#define TIMER_CHANNEL_INFO	(401)
 
 class SurfaceWindow : public Window {
 protected:
@@ -18,13 +28,6 @@ protected:
 		return Window::WndProc(uMsg, wParam, lParam);
 	}
 };
-
-
-#define TIMEBARCACHESIZE (1)
-#define MAX_BLUR_AREA   (10)
-
-#define TIMER_BLUR_AGAIN	(301)
-#define TIMER_CHANNEL_INFO	(401)
 
 #define MOUSE_OP_NONE	(0)
 #define MOUSE_OP_BLUR	(1)
@@ -80,6 +83,7 @@ public:
 	}
 };
 
+
 class Screen : public Window
 {
 protected:
@@ -87,6 +91,7 @@ protected:
     static int m_count ;
     int    m_flashrec ;
 	int    m_audio ;
+	HWND   m_hparent;
 	HWND   m_hwndToolTip;
 
 	SurfaceWindow m_surface;
@@ -104,7 +109,7 @@ public:
 
 	// day info cache
 	int     m_dayinfocache_year[12] ;
-	int     m_dayinfocache[12] ;
+	DWORD   m_dayinfocache[12] ;
 
 	class tbcache {
 	public:
@@ -176,9 +181,15 @@ public:
 	int getlocktime( struct dvrtime * day, struct cliptimeinfo ** plockinfo);
 	int gettimeinfo( struct dvrtime * day);
 	int getdayinfo( struct dvrtime * daytime );
+	DWORD getmoninfo(struct dvrtime * daytime);
 
-	int attach_channel(decoder * pdecoder, int channel);
+	virtual int attach_channel(decoder * pdecoder, int channel);
 	int getchinfo();
+
+	int capture(char * bmpfilename);
+#ifdef SUPPORT_DRIVEBY
+	void saveDriveByImage();
+#endif
 
 	int isattached(){
 		return m_attached && m_decoder!=NULL && m_channel>=0 ;
@@ -223,9 +234,6 @@ public:
 	int		m_num_polygon;
 	AOI_polygon * m_polygon;
 	void	UpdatePolygon();	// update polygons to screen
-
-	void	LoadAOI();
-	void	SaveAOI();
 
 	void	ClearAOI();			// clear all AOI/ROC
 	void    StartROC();

@@ -3,10 +3,11 @@
 
 #include <stdafx.h>
 
-#include <Windows.h>
+#include <windows.h>
 #include <commdlg.h>
 
-#include "../common/cwin.h"
+#include "cwin.h"
+
 #include "dvrclient.h"
 #include "Capture.h"
 
@@ -72,7 +73,7 @@ void Capture::OnBnClickedButtonSavefile()
         ofn.hInstance = ResInst();
         ofn.lpstrDefExt=_T("JPG");
         ofn.hwndOwner = m_hWnd ;
-        ofn.Flags= OFN_HIDEREADONLY |OFN_OVERWRITEPROMPT ;
+		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
         if( GetSaveFileName(&ofn) ) {
 #ifdef BIGSNAPSHOT		
 			int w, h ;

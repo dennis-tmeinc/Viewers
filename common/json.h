@@ -1,283 +1,124 @@
-#ifndef __json_h__
-#define __json_h__
+/*
+	A very simple json parser and encoder
+	by Dennis Chen@tme
+*/
 
-/* Json Types: */
-#define JSON_Null 0
-#define JSON_Bool 1
-#define JSON_Number 2
-#define JSON_String 3
-#define JSON_Array 4
-#define JSON_Object 5
+#ifndef __JSON__H__
+#define __JSON__H__
+
+#include <stddef.h>
+
+/* JSON Types: */
+#define JSON_Null (0)
+#define JSON_True (1)
+#define JSON_False (2)
+#define JSON_Number (3)
+#define JSON_String (4)
+#define JSON_Array (5)
+#define JSON_Object (6)
+
+// maximum file size for json encode
+#define MAX_JSON_FILE_SIZE (512000)
 
 class json {
 protected:
-	json *next, *prev;
-	json *child;
-	char *name;
-	int type;
+	int type; // json value type
 	double valueNumber;
-	char * valueString;
+	char* valueString;
+	char* name;
 
-	
+	json* next;  // next item (sibling) in the same object or array
+	json* child; // first child items of this object or array
+
+private:
+	void parse_string(const char* text, const char** parse_end);
+	void parse_object(const char* text, const char** parse_end);
+	void parse_value(const char* text, const char** parse_end);
+
+	int encode_string(char* text, int len);
+	int encode_object(char* text, int len, int indent);
+
+	void cleanup(); // cleanup value and set type to null
 
 public:
-	json() {
-		next = prev = child = NULL;
-		name = NULL;
-		type = JSON_Null;
-		valueString = NULL;
-		valueNumber = 0.0;
-	}
-
-	// detach this from its parent first.
-	~ json() {
-		if (prev) prev->next = next;
-		if (next) next->prev = prev;
-		while (child) {
-			delete Detach(0);
-		}
-		if (name) delete name;
-		if (valueString) delete valueString;
-	}
-
-	static char * dupString(const * string) {
-		int l = strlen(string);
-		char * newstring = new char[l + 1];
-		strcpy(newstring, string);
-		return newstring;
-	}
-
-	static json * createNull()
+	// construct a typed json object
+	json(int typ = JSON_Null)
+		: type(typ)
+		, valueNumber(0)
+		, valueString(NULL)
+		, name(NULL)
+		, next(NULL)
+		, child(NULL)
 	{
-		return new json;
 	}
 
-	static json * createBool(const char * name, int bvalue )
+	~json();
+
+	json& clone(const json& src); // clone from source json object
+	json& operator=(const json& src) { return clone(src); }
+	json& setType(int typ)
 	{
-		json * _j = new json;
-		_j->type = JSON_Bool;
-		if( name )
-			_j->name = dupString(name);
-		_j->valueNumber = bvalue;
-		return _j;
+		type = typ;
+		return *this;
 	}
+	int getType() { return type; };
+	json& setName(const char* newname);
+	const char* getName() { return name; }
+	json& setNull() { return setType(JSON_Null); }
+	json& setTrue() { return setType(JSON_True); }
+	json& setFalse() { return setType(JSON_False); }
+	json& setNumber(double dvalue);
+	json& setNumber(int ivalue) { return setNumber((double)ivalue); }
+	json& setNumber(long long ivalue) { return setNumber((double)ivalue); }
+	double getNumber();
+	int getInt() { return (int)getNumber(); }
+	json& setString(const char* value);
+	const char* getString();
 
-	static json * createNumber(const char * name, double nvalue)
+	json& addItem(json* item);							// add a child item
+	json& addNumberItem(double dvalue) // add a number item to array
 	{
-		json * _j = new json;
-		_j->type = JSON_Number;
-		if (name)
-			_j->name = dupString(name);
-		_j->valueNumber = nvalue;
-		return _j;
+		return addItem(&(new json())->setNumber(dvalue));
 	}
-
-	static json * createString(const char * name, const char * string)
+	json& addNumberItem(const char* nam, double dvalue) // add a number item to object
 	{
-		json * _j = new json;
-		_j->type = JSON_String;
-		if (name)
-			_j->name = dupString(name);
-		if( string )
-			_j->valueString = dupString(string)
-		return _j;
+		return addItem(&(new json())->setNumber(dvalue).setName(nam));
 	}
-
-	static json * createArray(const char * name)
+	json& addStringItem(const char* string) // add a string item to array
 	{
-		json * _j = new json;
-		_j->type = JSON_Array;
-		if (name)
-			_j->name = dupString(name);
-		return _j;
+		return addItem(&(new json())->setString(string));
 	}
-
-	static json * createObject(const char * name)
+	json& addStringItem(const char* nam,
+		const char* string) // add a string item to object
 	{
-		json * _j = createArray(name);
-		_j->type = JSON_Object;
-		return _j ;
+		return addItem(&(new json())->setString(string).setName(nam));
 	}
+	int itemSize();					 // get number of children items
+	json* getItem(int index);		 // get item with index (for array)
+	json* getItem(const char* name); // get item with name (for objects)
+	json* getLeaf(const char* leaf, char seperator = '/');	// get a leaf; ex:"resourceSets/0/resources/0/address/formattedAddress"
+	const char * getLeafString(const char* leaf, char seperator = '/');
+	double getLeafNumber(const char* leaf, char seperator = '/');
 
-	static json * decode(const char * jsontext)
+	int isNull() { return type == JSON_Null; }
+	int isTrue() { return type == JSON_True; }
+	int isFalse() { return !isTrue(); }
+	int isBool() { return type == JSON_False || type == JSON_True; }
+	int isNumber() { return type == JSON_Number; }
+	int isInt()
 	{
-
+		return type == JSON_Number && valueNumber == (double)(int)valueNumber;
 	}
+	int isString() { return type == JSON_String; }
+	int isArray() { return type == JSON_Array; }
+	int isObject() { return type == JSON_Object; }
 
-	// return bytes written
-	int encode( char * buf, int bsize ) {
+	void parse(const char* text,
+		const char** parse_end = NULL);				 // parse a json value in text
+	int encode(char* text, int len, int indent = 0); // encode this json object
 
-	}
-
-	double GetNumber() {
-		return valueNumber;
-	}
-
-	char * GetString() {
-		return valueString;
-	}
-
-	int    GetInt() {
-		return (int)GetNumber();
-	}
-
-	int		GetBool() {
-		return GetInt() != 0;
-	}
-
-	void SetNumber(double nvalue) {
-		valueNumber = nvalue;
-	}
-
-	void SetString(const char * string) {
-		valueString = dupString(string);
-	}
-	
-	void    SetInt( int value ) {
-		SetNumber((double)value);
-	}
-
-	void    SetBool(int bvalue) {
-		SetInt(bvalue);
-	}
-
-	int ArraySize() {
-		int s = 0;
-		json * ch = child ;
-		while (ch) {
-			s++;
-			ch = ch->next;
-		}
-		return s;
-	}
-
-	json *GetArrayItem(int idx) {
-		json * ch = child;
-		while ( ch && idx-->0) {
-			ch = ch->next;
-		}
-		return ch ;
-	}
-
-	json *GetObjectItem(const char *name) {
-		json * ch = child;
-		while (ch ) {
-			if (strcmp(name, ch->name) == 0) {
-				return ch;
-			}
-			ch = ch->next;
-		}
-		return NULL;
-	}
-
-	void AddItem(json * item) {
-		if (child == NULL) {
-			child = item;
-			item->prev = item->next = NULL;
-		}
-		else {
-			json * ch = child;
-			while (ch->next) {
-				ch = ch->next;
-			}
-			ch->next = item;
-			item->prev = ch;
-			item->next = NULL;
-		}
-	}
-
-	json * Detach(int idx) {
-		json * ch = GetArrayItem(idx);
-		if (ch) {
-			if (ch == child) {
-				child = ch->next;
-			}
-			else {
-				ch->prev->next = ch->next;
-				ch->next->prev = ch->prev;
-			}
-			ch->next = ch->prev = NULL;
-		}
-		return ch;
-	}
-
-	json * Detach(char * name) {
-		json * ch = GetObjectItem(name);
-		if (ch) {
-			if (ch == child) {
-				child = ch->next;
-			}
-			else {
-				ch->prev->next = ch->next;
-				ch->next->prev = ch->prev;
-			}
-			ch->next = ch->prev = NULL;
-		}
-		return ch;
-	}
+	json& loadFile(const char* filename);
+	void saveFile(const char* filename);
 };
 
-typedef struct cJSON {
-	struct cJSON *next,*prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
-	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
-
-	int type;					/* The type of the item, as above. */
-
-	
-
-	char *valuestring;			/* The item's string, if type==cJSON_String */
-	int valueint;				/* The item's number, if type==cJSON_Number */
-	double valuedouble;			/* The item's number, if type==cJSON_Number */
-
-	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
-} cJSON;
-
-#define cJSON_malloc malloc
-#define cJSON_free free
-
-/* These calls create a cJSON item of the appropriate type. */
-extern cJSON *cJSON_CreateNull(void);
-extern cJSON *cJSON_CreateBool(int b);
-extern cJSON *cJSON_CreateNumber(double num);
-extern cJSON *cJSON_CreateString(const char *string);
-extern cJSON *cJSON_CreateArray(void);
-extern cJSON *cJSON_CreateObject(void);
-
-
-/* Supply a block of JSON, and this returns a cJSON object you can interrogate. Call cJSON_Delete when finished. */
-extern cJSON *cJSON_Parse(const char *value);
-/* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
-extern char  *cJSON_Print(cJSON *item);
-/* Render a cJSON entity to text for transfer/storage without any formatting. Free the char* when finished. */
-extern char  *cJSON_PrintUnformatted(cJSON *item);
-/* Delete a cJSON entity and all subentities. */
-extern void   cJSON_Delete(cJSON *c);
-
-/* Returns the number of items in an array (or object). */
-extern int	  cJSON_GetArraySize(cJSON *array);
-/* Retrieve item number "item" from array "array". Returns NULL if unsuccessful. */
-extern cJSON *cJSON_GetArrayItem(cJSON *array,int item);
-/* Get item "string" from object. Case insensitive. */
-extern cJSON *cJSON_GetObjectItem(cJSON *object,const char *string);
-
-/* For analysing failed parses. This returns a pointer to the parse error. You'll probably need to look a few chars back to make sense of it. Defined when cJSON_Parse() returns 0. 0 when cJSON_Parse() succeeds. */
-extern const char *cJSON_GetErrorPtr(void);
-	
-/* These calls create a cJSON item of the appropriate type. */
-extern cJSON *cJSON_CreateNull(void);
-extern cJSON *cJSON_CreateTrue(void);
-extern cJSON *cJSON_CreateFalse(void);
-extern cJSON *cJSON_CreateBool(int b);
-extern cJSON *cJSON_CreateNumber(double num);
-extern cJSON *cJSON_CreateString(const char *string);
-extern cJSON *cJSON_CreateArray(void);
-extern cJSON *cJSON_CreateObject(void);
-
-/* Remove/Detatch items from Arrays/Objects. */
-extern cJSON *cJSON_DetachItemFromArray(cJSON *array,int which);
-extern void   cJSON_DeleteItemFromArray(cJSON *array,int which);
-extern cJSON *cJSON_DetachItemFromObject(cJSON *object,const char *string);
-extern void   cJSON_DeleteItemFromObject(cJSON *object,const char *string);
-
-
-#endif		// __json_h__
+#endif // __JSON__H__

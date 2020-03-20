@@ -2,10 +2,10 @@
 //
 #include <stdafx.h>
 
-#include <Windows.h>
-#include <Dbt.h>
-#include <Shlobj.h>
-#include <Shellapi.h>
+#include <windows.h>
+#include <dbt.h>
+#include <shlobj.h>
+#include <shellapi.h>
 #include <winioctl.h>
 
 #include <ctype.h>
@@ -14,11 +14,11 @@
 #include <direct.h>
 #include <string.h>
 
-#include "..\common\cwin.h"
-#include "..\common\cstr.h"
-#include "..\common\cdir.h"
-#include "..\common\util.h"
-#include "DlgSrcId.h"
+#include "cwin.h"
+#include "cstr.h"
+#include "cdir.h"
+#include "util.h"
+#include "dlgsrcid.h"
 #include "DlgCleanTarget.h"
 #include "DlgClTargetProgress.h"
 #include "ManagerDlg.h"
@@ -27,7 +27,7 @@
 #define TIMER_ARCHIVE  (101)
 
 DWORD devicemap  ;
-string targetdir="F:" ;
+string targetdir("F:") ;
 int    targetminspace=10 ;
 int    keepsourceunlock=0 ;
 static string pwsubkey("Software\\TME\\PW");
@@ -136,7 +136,7 @@ int ManagerDlg::OnInitDialog()
     HMENU hSysMenu = ::GetSystemMenu(m_hWnd, FALSE);
 	if (hSysMenu != NULL)
 	{
-		string strAboutMenu="About PWManager";
+		string strAboutMenu("About PWManager");
 		::AppendMenu(hSysMenu,MF_SEPARATOR, 0, NULL);
 		::AppendMenu(hSysMenu,MF_STRING, IDM_ABOUTBOX, strAboutMenu);
 	}
@@ -945,7 +945,7 @@ void shdeletefile( char * filename, HWND hwnd )
 
 void deletefile( char * filename )
 {
-    string fname=filename ;
+    string fname(filename) ;
     DeleteFile(fname);
 }
 

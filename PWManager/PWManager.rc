@@ -255,7 +255,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "res\\PWManager.rc2"
+#include "res/PWManager.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

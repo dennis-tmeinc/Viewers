@@ -31,7 +31,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_MAINFRAME           ICON                    "res\\pwviewer.ico"
+IDR_MAINFRAME           ICON                    "res/pwviewer.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -296,8 +296,7 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-    "#include ""res\\pwviewer.rc2""\r\n"
-    "\0"
+    "#include ""res/pwviewer.rc2""  // non-Microsoft Visual C++ edited resources\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -565,8 +564,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,18,911
- PRODUCTVERSION 1,1,18,911
+ FILEVERSION 1,1,19,418
+ PRODUCTVERSION 1,1,19,418
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x21L
@@ -582,12 +581,12 @@ BEGIN
         BLOCK "000904b0"
         BEGIN
             VALUE "CompanyName", "Toronto MicroElectronics Inc."
-            VALUE "FileVersion", "1.1.18.911"
+            VALUE "FileVersion", "1.1.19.418"
             VALUE "InternalName", "PWVIEWER"
             VALUE "LegalCopyright", "Copyright (C) 2008,2009,2010,2011"
             VALUE "OriginalFilename", "PWVIEWER.EXE"
             VALUE "ProductName", "PWVIEWER"
-            VALUE "ProductVersion", "1.1.18.911"
+            VALUE "ProductVersion", "1.1.19.418"
             VALUE "SpecialBuild", "PWVIEWER"
         END
     END
@@ -673,8 +672,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "res\pwviewer.rc2"
-
+#include "res/pwviewer.rc2"  // non-Microsoft Visual C++ edited resources
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

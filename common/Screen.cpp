@@ -3,13 +3,18 @@
 
 #include "stdafx.h"
 
+#include <oleidl.h>
 #include <math.h>
 
 #include "cwin.h"
 #include "cstr.h"
+#include "cdir.h"
+#include "util.h"
+#include "json.h"
 #include "dvrclient.h"
 #include "dvrclientdlg.h"
 #include "decoder.h"
+#include "DropTarget.h"
 #include "Screen.h"
 
 #define MIN_ZOOM_SIZE (0.01)
@@ -30,8 +35,9 @@ Screen::Screen(HWND hparent)
 	clearcache();
 	m_count++;
 	if (m_backgroundimg == NULL) {
-		m_backgroundimg = loadbitmap(_T("BACKGROUND"));
+		m_backgroundimg = loadimage(_T("BACKGROUND"));
 	}
+	m_hparent = hparent;
 	HWND hwnd = CreateWindowEx(0,
 		WinClass(),
 		_T("SCREEN"),
@@ -40,7 +46,7 @@ Screen::Screen(HWND hparent)
 		CW_USEDEFAULT,          // default vertical position    
 		CW_USEDEFAULT,          // default width                
 		CW_USEDEFAULT,          // default height    
-		hparent,
+		m_hparent,
 		NULL,
 		AppInst(),
 		this);
@@ -65,6 +71,7 @@ Screen::Screen(HWND hparent)
 	m_mouse_op = MOUSE_OP_NONE;
 
 	m_rotate_degree = 0;
+
 }
 
 Screen::~Screen()
@@ -91,8 +98,11 @@ Screen::~Screen()
 void Screen::clearcache()
 {
 	int i;
-	memset(&m_dayinfocache_year, 0, sizeof(m_dayinfocache_year));		// clear month info cache
-	memset(&m_dayinfocache, 0, sizeof(m_dayinfocache));
+	// clear month info cache
+	for (i = 0; i < 12; i++) {
+		m_dayinfocache_year[i] = 0;
+		m_dayinfocache[i] = 0;
+	}
 	for (i = 0; i < TIMEBARCACHESIZE; i++) {
 		m_timebarcache[i].clean();
 	}
@@ -113,11 +123,80 @@ int Screen::getchinfo()
 		}
 		else {
 			// g_maindlg->SetScreenFormat();
-			PostMessage(g_maindlg->getHWND(), WM_SETSCREENFORMAT, NULL, NULL);
+			PostMessage(g_maindlg->getHWND(), WM_SETSCREENFORMAT, (WPARAM)NULL, (LPARAM)NULL);
 		}
 	}
 	return 0;
 }
+
+int Screen::capture(char * bmpfilename)
+{
+	if (m_decoder && m_channel >= 0 && m_attached) {
+		return m_decoder->capture(m_channel, m_hWnd, bmpfilename);
+	}
+	return DVR_ERROR;
+}
+
+#ifdef SUPPORT_DRIVEBY
+void Screen::saveDriveByImage()
+{
+	WaitCursor wc;
+
+	json jdb;
+
+	string reportSessionFile ;
+	getTempFolder(reportSessionFile);
+	reportSessionFile += "\\DBReportSess";
+
+	jdb.loadFile(reportSessionFile);
+	if (!jdb.isObject()) {
+		jdb.setType(JSON_Object);
+	}
+
+	json *record = new json(JSON_Object);
+
+	dvrtime dt, dt2000;
+	m_decoder->getcurrenttime(&dt);
+	dt2000 = time_2000();
+	record->addNumberItem("t2000", dt - dt2000);
+
+	record->addStringItem("dvrname", m_decoder->m_playerinfo.servername);
+
+	string gpslocation;
+	if (m_decoder->getlocation(gpslocation.strsize(1024), 1000) > 0) {
+		int l = strlen(gpslocation);
+		if (l > 32) {
+			float lati, longi, kmh, direction;
+			char  latiD, longiD, cdirection;
+			sscanf(((char *)gpslocation) + 12, "%9f%c%10f%c%f%c%6f",
+				&lati, &latiD, &longi, &longiD, &kmh, &cdirection, &direction);
+			if (latiD != 'N') lati = -lati;
+			if (longiD != 'E')longi = -longi;
+			if (lati > 1.0 || longi > 1.0) {
+				gpslocation.printf("%.6f,%.6f", lati, longi);
+				record->addStringItem("location", gpslocation);
+			}
+		}
+	}
+
+	string imgfile;
+	char prefix[20];
+	sprintf(prefix, "DB%d_", m_channel);
+	mkTempFileName(prefix, "BMP", imgfile);
+	capture(imgfile);
+
+	record->addStringItem("img", imgfile);
+
+	json * records = jdb.getLeaf("captures");
+	if (records == NULL) {
+		records = new json(JSON_Array);
+		records->setName("captures");
+		jdb.addItem(records);
+	}
+	records->addItem(record);
+	jdb.saveFile(reportSessionFile);
+}
+#endif // SUPPORT_DRIVEBY
 
 int Screen::attach_channel(decoder * pdecoder, int channel)
 {
@@ -133,7 +212,6 @@ int Screen::attach_channel(decoder * pdecoder, int channel)
 		if (hsurface != NULL) {
 			m_surface.attach(hsurface);
 		}
-
 		return 1;
 	}
 	return 0;
@@ -212,6 +290,7 @@ int Screen::DetachDecoder()
 	m_decoder = NULL;
 	m_channel = -1;
 	m_ba_number = 0;         // clear blurring area
+	g_maindlg->updateTimebar();
 	return 0;
 }
 
@@ -233,7 +312,8 @@ LRESULT Screen::OnTimer(UINT_PTR nIDEvent)
 int Screen::Show()
 {
 	ShowWindow(m_hWnd, SW_SHOW);
-	if (m_decoder == NULL)
+	//if (m_decoder == NULL)
+	if (!m_attached)
 		RedrawWindow(m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 	if (m_decoder && m_attached == 0 && m_channel >= 0) {
 		if (attach_channel(m_decoder, m_channel)) {
@@ -266,6 +346,7 @@ int  Screen::selectfocus()
 	if (m_decoder && m_attached && m_channel >= 0) {
 		m_decoder->selectfocus(m_hWnd);
 	}
+	SetWindowPos(m_hWnd, HWND_TOP, 0,0,0,0, SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
 	return 0;
 }
 
@@ -398,6 +479,29 @@ int Screen::getdayinfo(struct dvrtime * daytime)
 	return 0;
 }
 
+DWORD Screen::getmoninfo(struct dvrtime * daytime)
+{
+	int day;
+	int month = daytime->month - 1;
+	if (month < 0 || month >= 12) return 0;
+	if (m_decoder) {
+		if (m_dayinfocache_year[month] != daytime->year) {		// miss cache
+			m_dayinfocache_year[month] = daytime->year;
+			m_dayinfocache[month] = 0;
+			struct dvrtime t = *daytime;
+			for (day = 1; day <= 31; day++) {
+				t.day = day;
+				if (m_decoder->getclipdayinfo(m_channel, &t) > 0) {
+					m_dayinfocache[month] |= 1 << (day - 1);
+				}
+			}
+		}
+		return m_dayinfocache[month] ;
+	}
+	return 0;
+}
+
+
 // Screen message handlers
 LRESULT Screen::OnPaint()
 {
@@ -410,7 +514,10 @@ LRESULT Screen::OnPaint()
 		refreshed = m_decoder->refresh(m_channel) >= 0;
 	}
 
-	if (!refreshed && m_backgroundimg) {
+	if (!refreshed && m_backgroundimg && 
+		ps.rcPaint.bottom>ps.rcPaint.top && 
+		ps.rcPaint.right>ps.rcPaint.left && 
+		GetWindow(m_hWnd, GW_CHILD) == NULL ) {
 		Graphics g(hdc);
 		g.DrawImage(m_backgroundimg, 0, 0, m_width, m_height);
 	}
@@ -432,7 +539,7 @@ void Screen::showTooltip(char * msg)
 	ti.uFlags = TTF_TRANSPARENT | TTF_CENTERTIP;
 	ti.hwnd = m_hWnd;
 	ti.hinst = AppInst();
-	string mmsg = msg;
+	string mmsg( msg );
 	ti.lpszText = mmsg;
 
 	GetClientRect(m_hWnd, &ti.rect);
@@ -528,14 +635,14 @@ int Screen::ShowZoomarea(float x, float y, float z)
 		if (m_zoomarea.x < 0.0) {
 			m_zoomarea.x = 0.0;
 		}
-		else if (m_zoomarea.x + m_zoomarea.z > 1.0) {
+		else if (m_zoomarea.x + m_zoomarea.z > 1.0f) {
 			m_zoomarea.x = 1.0 - m_zoomarea.z;
 		}
 
 		if (m_zoomarea.y < 0.0) {
 			m_zoomarea.y = 0.0;
 		}
-		else if (m_zoomarea.y + m_zoomarea.z > 1.0) {
+		else if (m_zoomarea.y + m_zoomarea.z > 1.0f) {
 			m_zoomarea.y = 1.0 - m_zoomarea.z;
 		}
 	}
@@ -681,201 +788,6 @@ void   Screen::ClearAOI()
 		m_polygon = NULL;
 	}
 	UpdatePolygon();
-}
-
-inline double cJSON_GetFloat(cJSON * j, char * vname, double defaultvalue = 0.0)
-{
-	cJSON *c;
-	if (j) {
-		c = cJSON_GetObjectItem(j, vname);
-		if (c) {
-			return (float)(c->valuedouble);
-		}
-	}
-	return defaultvalue;
-}
-
-inline char * cJSON_GetString(cJSON * j, char * vname)
-{
-	cJSON *c;
-	if (j) {
-		c = cJSON_GetObjectItem(j, vname);
-		if (c) {
-			return c->valuestring;
-		}
-	}
-	return NULL;
-}
-
-void   Screen::LoadAOI()
-{
-	cJSON * j_mdu = NULL;
-	cJSON * j_sensor = NULL;
-
-	// read from json file
-	char * fbuf = new char[1000000];
-	FILE *faoi = fopen("r:\\aoi.json", "r");
-	int r = 0;
-	if (faoi) {
-		r = fread(fbuf, 1, 999999, faoi);
-		fclose(faoi);
-	}
-	if (r > 0) {
-		j_mdu = cJSON_Parse(fbuf);
-		if (j_mdu) {
-			cJSON *j_rooms = cJSON_GetObjectItem(j_mdu, "Rooms");
-			if (j_rooms && cJSON_GetArraySize(j_rooms) > 0) {
-				cJSON * j_room = cJSON_GetArrayItem(j_rooms, 0);
-				cJSON * j_sensors = cJSON_GetObjectItem(j_room, "Sensors");
-				if (j_sensors && cJSON_GetArraySize(j_sensors) > 0) {
-					j_sensor = cJSON_GetArrayItem(j_sensors, 0);
-				}
-			}
-		}
-	}
-	delete fbuf;
-
-	if (j_sensor) {
-		// init AOI from cJSON j_sensor
-		ClearAOI();
-		StartAOI();
-		m_mouse_op = MOUSE_OP_NONE;
-
-		// init ROC
-		cJSON * j_ROC = cJSON_GetObjectItem(j_sensor, "ROC");
-		if (j_ROC) {
-			float top = cJSON_GetFloat(j_ROC, "Top", 0.0);
-			float left = cJSON_GetFloat(j_ROC, "Left", 0.0);
-			float right = cJSON_GetFloat(j_ROC, "Right", 1.0);
-			float bottom = cJSON_GetFloat(j_ROC, "Bottom", 1.0);
-
-			m_polygon[0].points = 0;
-			m_polygon[0].add(left, top);
-			m_polygon[0].add(right, top);
-			m_polygon[0].add(right, bottom);
-			m_polygon[0].add(left, bottom);
-			m_polygon[0].add(left, top);
-		}
-
-		// init AOI
-		cJSON * a_AOI = cJSON_GetObjectItem(j_sensor, "AOI");
-		int s_AOI = cJSON_GetArraySize(a_AOI);
-		for (int ia = 0; ia < s_AOI; ia++) {
-			cJSON * aoi = cJSON_GetArrayItem(a_AOI, ia);
-			if (aoi) {
-				cJSON * points = cJSON_GetObjectItem(aoi, "Points");
-				if (points) {
-					AOI_polygon * polygon = &m_polygon[m_num_polygon];
-					polygon->points = 0;
-					polygon->name = cJSON_GetString(aoi, "Name");
-
-					int s_p = cJSON_GetArraySize(points);
-					for (int ip = 0; ip < s_p; ip++) {
-						cJSON * point = cJSON_GetArrayItem(points, ip);
-						if (point) {
-							polygon->add(cJSON_GetFloat(point, "x"),
-								cJSON_GetFloat(point, "y"));
-						}
-					}
-
-					m_num_polygon++;
-				}
-			}
-		}
-	}
-
-	if (j_mdu)
-		cJSON_Delete(j_mdu);
-
-	UpdatePolygon();
-}
-
-void   Screen::SaveAOI()
-{
-	cJSON * j_mdu = NULL;
-	cJSON * j_sensor = NULL;
-
-	// read from json file
-	char * fbuf = new char[1000000];
-	FILE *faoi = fopen("r:\\aoi.json", "r");
-	int r = 0;
-	if (faoi) {
-		r = fread(fbuf, 1, 999999, faoi);
-		fclose(faoi);
-	}
-	if (r > 0) {
-		j_mdu = cJSON_Parse(fbuf);
-		if (j_mdu == NULL) {
-			j_mdu = cJSON_CreateObject();
-		}
-		cJSON *j_rooms = cJSON_GetObjectItem(j_mdu, "Rooms");
-		if (j_rooms == NULL) {
-			j_rooms = cJSON_CreateArray();
-			cJSON_AddItemToObject(j_mdu, "Rooms", j_rooms);
-		}
-		if (cJSON_GetArraySize(j_rooms) > 0) {
-			cJSON * j_room = cJSON_GetArrayItem(j_rooms, 0);
-			cJSON * j_sensors = cJSON_GetObjectItem(j_room, "Sensors");
-			if (j_sensors && cJSON_GetArraySize(j_sensors) > 0) {
-				j_sensor = cJSON_GetArrayItem(j_sensors, 0);
-			}
-		}
-	}
-	delete fbuf;
-
-	if (j_sensor) {
-
-		// add ROC
-		cJSON * j_ROC = cJSON_GetObjectItem(j_sensor, "ROC");
-		if (j_ROC) {
-			cJSON_DeleteItemFromObject(j_sensor, "ROC");
-		}
-		j_ROC = cJSON_CreateObject();
-
-		float Left = m_polygon[0].poly[0].x;
-		float Top = m_polygon[0].poly[0].y;
-		float Right = m_polygon[0].poly[2].x;
-		float Bottom = m_polygon[0].poly[2].y;
-		cJSON_AddNumberToObject(j_ROC, "Top", Top);
-		cJSON_AddNumberToObject(j_ROC, "Left", Left);
-		cJSON_AddNumberToObject(j_ROC, "Right", Right);
-		cJSON_AddNumberToObject(j_ROC, "Bottom", Bottom);
-		cJSON_AddItemToObject(j_sensor, "ROC", j_ROC);
-
-		// add AOI
-		cJSON * a_AOI = cJSON_GetObjectItem(j_sensor, "AOI");
-		if (a_AOI)
-			cJSON_DeleteItemFromObject(j_sensor, "AOI");
-		a_AOI = cJSON_CreateArray();
-		for (int ia = 1; ia < m_num_polygon; ia++) {
-			if (m_polygon[ia].points > 1) {
-				cJSON * j_aoi = cJSON_CreateObject();
-				cJSON_AddStringToObject(j_aoi, "Name", m_polygon[ia].name);
-				cJSON * points = cJSON_CreateArray();
-				for (int ip = 0; ip < m_polygon[ia].points; ip++) {
-					cJSON * point = cJSON_CreateObject();
-					cJSON_AddNumberToObject(point, "x", m_polygon[ia].poly[ip].x);
-					cJSON_AddNumberToObject(point, "y", m_polygon[ia].poly[ip].y);
-					cJSON_AddItemToArray(points, point);
-				}
-				cJSON_AddItemToObject(j_aoi, "Points", points);
-				cJSON_AddItemToArray(a_AOI, j_aoi);
-			}
-		}
-		cJSON_AddItemToObject(j_sensor, "AOI", a_AOI);
-
-		char * jsontext = cJSON_Print(j_mdu);
-
-		faoi = fopen("r:\\aoi_save.json", "w");
-		if (faoi) {
-			fputs(jsontext, faoi);
-			fclose(faoi);
-		}
-	}
-
-	if (j_mdu) {
-		cJSON_Delete(j_mdu);
-	}
 }
 
 // PTZ when zoom in enabled
@@ -1233,14 +1145,15 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 	HMENU hMenuScreenMode = CreatePopupMenu();
 	HMENU hMenuROC = CreatePopupMenu();
 	HMENU hMenuRotate = CreatePopupMenu();
+	HMENU hMenuDriveby = CreatePopupMenu();
 
 	// Screen Format selection
 	int i;
 
+	int screenMode = g_maindlg->getScreenMode();
 	int id_SCREEN_MODE = cmd;
-	int id_SCREEN_MODE_END = 0;
 	for (i = 0; i < screenmode_table_num; i++) {
-		if (g_screenmode == i) {
+		if (screenMode == i) {
 			flag = MF_STRING | MF_CHECKED;
 		}
 		else {
@@ -1248,27 +1161,29 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 		}
 		AppendMenu(hMenuScreenMode, flag, id_SCREEN_MODE + i, screenmode_table[i].screenname);
 	}
-	if (g_screenmode >= i || g_screenmode < 0) {
+	cmd = id_SCREEN_MODE + screenmode_table_num;
+	int id_SCREEN_MODE_END = cmd;
+
+	int id_SCREEN_MODE_AUTO = cmd++;
+	if (screenMode == SCREENMODE_AUTO ) {
 		flag = MF_STRING | MF_CHECKED;
 	}
 	else {
 		flag = MF_STRING;
 	}
-	AppendMenu(hMenuScreenMode, flag, id_SCREEN_MODE + i, _T("Automatic"));
-	cmd = id_SCREEN_MODE + i + 1;
-	id_SCREEN_MODE_END = cmd;
+	AppendMenu(hMenuScreenMode, flag, id_SCREEN_MODE_AUTO, _T("Automatic"));
 
-	AppendMenu(hMenuScreenMode, MF_SEPARATOR, NULL, NULL);
+	AppendMenu(hMenuScreenMode, MF_SEPARATOR, 0, NULL);
+	int id_FULL_SCREEN = cmd++;
 	if (g_maindlg->IsZoom()) {
 		flag = MF_STRING | MF_CHECKED;
 	}
 	else {
 		flag = MF_STRING;
 	}
-	int id_FULL_SCREEN = cmd++;
 	AppendMenu(hMenuScreenMode, flag, id_FULL_SCREEN, _T("Full Screen"));
 
-	AppendMenu(hMenuScreenMode, MF_SEPARATOR, NULL, NULL);
+	AppendMenu(hMenuScreenMode, MF_SEPARATOR, 0, NULL);
 	// screen aspect ratios
 	if (g_ratiox == 4 && g_ratioy == 3) {
 		flag = MF_STRING | MF_CHECKED;
@@ -1345,8 +1260,17 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 
 	int id_BLUR_RECTANGULAR = cmd++;
 	int id_BLUR_ELLIPSE = cmd++;
+	int id_BLUR_INVERT_RECTANGULAR = cmd++;
+	int id_BLUR_INVERT_ELLIPSE = cmd++;
 	int id_BLUR_CLEAR = cmd++;
 
+#ifdef SUPPORT_DRIVEBY
+	int id_driveby_capture = cmd++;
+	int id_driveby_genreport = cmd++;
+	int id_driveby_clean = cmd++;
+#endif
+
+	string gpslocation;
 	if (m_decoder && m_attached) {
 		if (m_decoder->getfeatures() & PLYFEATURE_PLAYERCONFIGURE) {
 			AppendMenu(hMenuPop, MF_STRING, id_SETUP_PLAYER, _T("Setup Player"));
@@ -1354,8 +1278,7 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 		AppendMenu(hMenuPop, MF_STRING, id_CLOSE_PLAYER, _T("Close"));
 
 		// add on Feb 09, 2012, show gps map
-		string gpslocation;
-		if (m_decoder->getlocation(gpslocation.strsize(514), 512) > 0) {
+		if (m_decoder->getlocation(gpslocation.strsize(1024), 1000) > 0) {
 			int l = strlen(gpslocation);
 			if (l > 32) {
 				float lati, longi, kmh, direction;
@@ -1366,6 +1289,27 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 					AppendMenu(hMenuPop, MF_STRING, id_DISPLAY_MAP, _T("Display Map"));
 				}
 			}
+
+#ifdef SUPPORT_DRIVEBY
+			string reportSessionFile;
+			getTempFolder(reportSessionFile);
+			reportSessionFile += "\\DBReportSess";
+			json dbsess;
+			dbsess.loadFile(reportSessionFile);
+			int ncap = 0;
+			json * jcaps = dbsess.getLeaf("captures");
+			if (jcaps)
+				ncap = jcaps->itemSize();
+			string simg;
+			simg.printf("Capture Image - (%d)", ncap);
+			AppendMenu(hMenuDriveby, MF_STRING , id_driveby_capture, simg);
+			flag = MF_STRING;
+			if (ncap < 1) flag |= MF_GRAYED;
+			AppendMenu(hMenuDriveby, flag, id_driveby_genreport, _T("Generate Report"));
+			AppendMenu(hMenuDriveby, MF_STRING, id_driveby_clean, _T("Restart Process"));
+			AppendMenu(hMenuPop, MF_POPUP, (UINT_PTR)hMenuDriveby, _T("Drive By Report"));
+#endif
+
 		}
 
 #ifdef WMVIEWER_APP
@@ -1375,41 +1319,57 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 
 #if defined(DVRVIEWER_APP) || defined( SPARTAN_APP ) || defined( WMVIEWER_APP ) || defined( APP_PWVIEWER )
 		if (m_decoder->blur_supported() && m_mouse_op == MOUSE_OP_NONE && m_zoomarea.z == 1.0) {
-			AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+			AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 
 			// Blur area support
 			if (m_ba_number < MAX_BLUR_AREA) {
-				AppendMenu(hMenuPop, MF_STRING, id_BLUR_RECTANGULAR, _T("Add Rectangular Blur Area"));
-				AppendMenu(hMenuPop, MF_STRING, id_BLUR_ELLIPSE, _T("Add Ellipse Blur Area"));
+				flag = MF_STRING ;
 			}
 			else {
-				AppendMenu(hMenuPop, MF_STRING | MF_GRAYED, id_BLUR_RECTANGULAR, _T("Add Rectangular Blur Area"));
-				AppendMenu(hMenuPop, MF_STRING | MF_GRAYED, id_BLUR_ELLIPSE, _T("Add Ellipse Blur Area"));
+				flag = MF_STRING | MF_GRAYED;
+			}
+			AppendMenu(hMenuPop, flag, id_BLUR_RECTANGULAR, _T("Add Rectangular Blur Area"));
+			AppendMenu(hMenuPop, flag, id_BLUR_ELLIPSE, _T("Add Ellipse Blur Area"));
+			if (stricmp(m_decoder->getdecodername(), "ply266.dll") == 0) {
+				AppendMenu(hMenuPop, flag, id_BLUR_INVERT_RECTANGULAR, _T("Add Invert Rectangular Blur Area"));
+				AppendMenu(hMenuPop, flag, id_BLUR_INVERT_ELLIPSE, _T("Add Invert Ellipse Blur Area"));
 			}
 			AppendMenu(hMenuPop, MF_STRING, id_BLUR_CLEAR, _T("Clear Blur Area"));
 		}
 #endif  // DVRVIEWER_APP
 
 	}
-
-	AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+	
+	AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 
 	int id_ZOOM_IN = cmd++;
 	if (m_mouse_op == MOUSE_OP_ZOOM) {
 		AppendMenu(hMenuPop, MF_STRING | MF_CHECKED, id_ZOOM_IN, _T("Zoom In"));
-		AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+		AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 	}
 	else if (m_attached && m_decoder != NULL && m_decoder->supportzoomin() && m_channel >= 0 && m_mouse_op == MOUSE_OP_NONE) {
 		AppendMenu(hMenuPop, MF_STRING, id_ZOOM_IN, _T("Zoom In"));
-		AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+		AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 	}
+
+	int id_SUBVIEW = cmd++;
+// dvrviewer only
+#ifdef  DVRVIEWER_APP
+	if ( m_decoder != NULL && m_decoder->supportattachview()) {
+		flag = MF_STRING;
+		if (g_subviewsupport) {
+			flag |= MF_CHECKED;
+		}
+		AppendMenu(hMenuPop, flag, id_SUBVIEW, _T("TruView"));
+		AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
+	}
+#endif	// DVRVIEWER_APP
 
 	int id_ROTATE_0 = cmd++;
 	int id_ROTATE_90 = cmd++;
 	int id_ROTATE_180 = cmd++;
 	int id_ROTATE_270 = cmd++;
 	if (m_attached && m_decoder != NULL && m_decoder->supportrotate() && m_channel >= 0) {
-
 		// add 0, 90, 180, 270 rotation menu
 		if (m_rotate_degree == 0)
 			AppendMenu(hMenuRotate, MF_STRING | MF_CHECKED, id_ROTATE_0, _T("0 degree"));
@@ -1432,9 +1392,8 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 			AppendMenu(hMenuRotate, MF_STRING, id_ROTATE_270, _T("270 degree"));
 
 		AppendMenu(hMenuPop, MF_POPUP, (UINT_PTR)hMenuRotate, _T("Rotation"));
-		AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+		AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 	}
-
 
 #ifdef SUPPORT_ROC_AOI
 	// support of ROC/AOI, value from 8000-8999
@@ -1468,7 +1427,7 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 			}
 		}
 		AppendMenu(hMenuPop, MF_POPUP, (UINT_PTR)hMenuROC, _T("ROC/AOI"));
-		AppendMenu(hMenuPop, MF_SEPARATOR, NULL, NULL);
+		AppendMenu(hMenuPop, MF_SEPARATOR, 0, NULL);
 	}
 
 	cmd++;
@@ -1477,6 +1436,7 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 
 	int id_CHANNEL_START = cmd;
 	int channel;
+	if(screenMode!=SCREENMODE_SUBVIEW)		// channel locked in subview mode
 	for (i = 0; i < MAXDECODER; i++) {
 		if (g_decoder[i].isopen()) {
 			cmd = id_CHANNEL_START + i * 128;
@@ -1511,6 +1471,7 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 	cmd = TrackPopupMenu(hMenuPop, TPM_RIGHTBUTTON | TPM_RETURNCMD,
 		pt.x, pt.y,
 		0, m_hWnd, NULL);
+	DestroyMenu(hMenuDriveby);
 	DestroyMenu(hMenuRotate);
 	DestroyMenu(hMenuROC);
 	DestroyMenu(hMenuScreenMode);
@@ -1525,6 +1486,19 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 	else if (cmd == id_DISPLAY_MAP) {	// Display Map
 		g_maindlg->DisplayMap();
 	}
+
+#ifdef SUPPORT_DRIVEBY
+	else if (cmd == id_driveby_capture) {	// capture current channel picture
+		saveDriveByImage();
+	}
+	else if (cmd == id_driveby_genreport) {	// generate driveby report
+		g_maindlg->DriveByReport();
+	}
+	else if (cmd == id_driveby_clean) {		// clean all temperary drive files (restart a drive by session)
+		g_maindlg->cleanDriveByFiles();
+	}
+#endif // SUPPORT_DRIVEBY
+
 	else if (cmd == id_SHOW_MARK_CLIP) {	// show marked clip list
 		g_maindlg->DisplayClipList(1);
 	}
@@ -1537,6 +1511,12 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 	else if (cmd == id_BLUR_ELLIPSE) {	// Select Ellipse Blur Area
 		AddBlurArea(1);
 	}
+	else if (cmd == id_BLUR_INVERT_RECTANGULAR) {	// Select Rectangle Blur area
+		AddBlurArea(2);
+	}
+	else if (cmd == id_BLUR_INVERT_ELLIPSE) {	// Select Ellipse Blur Area
+		AddBlurArea(3);
+	}
 	else if (cmd == id_BLUR_CLEAR) {	// Clear Blur Area 
 		ClearBlurArea();
 	}
@@ -1547,6 +1527,11 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 		else {
 			StartZoom();
 		}
+	}
+	else if (cmd == id_SUBVIEW) {	// sub view support (fish eye)
+		g_subviewsupport = !g_subviewsupport;
+		if (screenMode == SCREENMODE_SUBVIEW)
+			g_maindlg->setScreenMode(SCREENMODE_RESTORE);
 	}
 	else if (cmd == id_ROTATE_0) {	// rotate 0 degree
 		setRotate(0);
@@ -1588,10 +1573,12 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 		AttachDecoder(&g_decoder[i], channel);
 	}
 	else if (cmd >= id_SCREEN_MODE && cmd < id_SCREEN_MODE_END) {
-		g_singlescreenmode = 0;
-		g_screenmode = cmd - id_SCREEN_MODE;
-		reg_save("screenmode", g_screenmode);
-		g_maindlg->SetScreenFormat();
+		g_maindlg->setScreenMode(cmd - id_SCREEN_MODE);
+		reg_save("screenmode", g_maindlg->getScreenMode() );
+	}
+	else if (cmd == id_SCREEN_MODE_AUTO) {
+		g_maindlg->setScreenMode(SCREENMODE_AUTO);
+		reg_save("screenmode", g_maindlg->getScreenMode());
 	}
 	else if (cmd == id_FULL_SCREEN) {
 		g_maindlg->SetZoom();

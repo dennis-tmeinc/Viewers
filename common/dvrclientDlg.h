@@ -7,9 +7,9 @@
 #include "../common/cstr.h"
 #include "../common/util.h"
 
-#include <Windows.h>
+#include <windows.h>
 #include <mmsystem.h>
-#include <MsHTML.h>
+#include <mshtml.h>
 
 #include "dvrclient.h"
 #include "Screen.h"
@@ -20,6 +20,7 @@
 #include "decoder.h"
 #include "CopyProgress.h"
 #include "bitmapbutton.h"
+#include "DropTarget.h"
 
 #if defined( APP_PW_TABLET ) || defined( APP_TVS ) 
 #include "bsliderbar.h"
@@ -53,6 +54,10 @@
 
 // notify main window to reset screen format
 #define WM_SETSCREENFORMAT	(WM_APP + 201)
+// post file open
+#define WM_OPENDVRFILE		(WM_APP + 202)
+
+#define SUBVIEW_SCREEN_NUMBER	(4)
 
 // DvrclientDlg dialog
 class DvrclientDlg : public Dialog
@@ -104,10 +109,13 @@ protected:
 
     RECT  m_zoomrect ;                      // save rect before zoom (full screen)
     int   m_zoom ;
+	int   m_dpi;
 
 	HCURSOR	m_companylinkcursor ;
 
     Screen * m_screen[MAXSCREEN] ;
+	Screen * m_saveScreen[SUBVIEW_SCREEN_NUMBER];			// saved screen for 2x2/subview
+
     int     m_reclight;                 // PW FRONT END
 
     // volume controls
@@ -119,7 +127,8 @@ protected:
 	int m_update_time ;					// miliseconds to update time bar
 	int m_playfile_beginpos;
 	int m_playfile_endpos;
-    Bitmap * m_bkbmp ;
+	Gdiplus::Bitmap * m_bkbmp ;
+	Gdiplus::Brush* m_bkbrush;
 
 #if defined( APP_PW_TABLET ) || defined( APP_TVS ) 
 	BSliderBar m_slider ;
@@ -140,6 +149,9 @@ protected:
     // Cliplist window
     Window * m_cliplist ;
 
+	// Drag&Drop support
+	DropTarget dropTarget;
+
 public:
 
     void SetZoom();
@@ -149,16 +161,22 @@ public:
 	void SetVolume() ;					// set volume, 0 - 100
 	void SetScreenFormat();
 	void SetScreenFormat(char * screenname);
+	void OpenDVRFile(string* filename);
 	void Campass(int x, int y);
 	void FocusPlayer( Screen * player);
 	void StartPlayer();						// start player
 	void ClosePlayer();						// close all player window
     void OpenDvr(int playmode, int clientmode, int autoopen=FALSE, char * autoserver=NULL);
+
+	void setScreenMode(int newmode);
+	int  getScreenMode();
 	void ScreenDblClk( Screen * player);
 	void Seek();
     void SetPlayTime(dvrtime *dvrt);
 	DWORD GetDaystateMonthcalendar(int year, int month);
 	void UpdateMonthcalendar();
+	void updateTimebar();
+
 	int DVR_PTZMsg( DWORD msg, DWORD param );
 	void SeekTime( struct dvrtime * dtime );	// seek to specified time
 	void SetPlaymode( int clientmode )		// set client playing mode
@@ -181,8 +199,6 @@ public:
     }
 
     // Display a location map
-
-
     void UpdateMap();
 	void ReleaseMap();
     void DisplayMap() ;
@@ -195,8 +211,8 @@ public:
     void DisplayClipList(int lockclip);
     void CloseClipList();
 
-   	int Playfile(LPCTSTR filename) ;
-    int PlayRemote(LPCTSTR rhost, int playmode);
+   	int Playfile(const char * filename) ;
+    int PlayRemote(const char * rhost, int playmode);
 
 	// change Time Range
 	int  GetTimeRange();
@@ -209,6 +225,11 @@ public:
 	void setSingleScreen(int channel);
 
 	int GetSaveClipFilename( string &filename );
+
+#ifdef SUPPORT_DRIVEBY
+	int DriveByReport();
+	void cleanDriveByFiles();
+#endif
 
 	// Generated message map functions
 protected:
@@ -319,6 +340,8 @@ protected:
 	void OnBnClickedScreen2();
 	void OnBnClickedScreen4();
 #endif
+
+	LRESULT OnDpiChanged(int dpi);
 
 	int OnDisplayChange();			// display resolution changed, (rotate)
 
@@ -491,6 +514,14 @@ protected:
 		return res ;
 	}
 
+#ifdef  __MINGW32__ 
+// mingw set wrong value of MCN_GETDAYSTATE
+#ifdef MCN_GETDAYSTATE
+#undef MCN_GETDAYSTATE
+#endif
+#define MCN_GETDAYSTATE (MCN_FIRST-1)
+#endif
+
 	virtual int OnNotify( LPNMHDR pnmhdr ) {
 		LRESULT lres=0 ;
 		switch( pnmhdr->code ) {
@@ -504,7 +535,7 @@ protected:
 				break ;
 
 			case MCN_GETDAYSTATE: 
-				if( pnmhdr->idFrom == IDC_MONTHCALENDAR) OnMcnGetdaystateMonthcalendar(pnmhdr, &lres) ; 
+				if (pnmhdr->idFrom == IDC_MONTHCALENDAR) OnMcnGetdaystateMonthcalendar(pnmhdr, &lres);
 				break ;
 
 			case MCN_SELCHANGE: 
@@ -609,6 +640,10 @@ protected:
 			OnSize( wParam, LOWORD(lParam), HIWORD(lParam));
 			break;
 
+		case WM_DPICHANGED :
+			OnDpiChanged(HIWORD(wParam));
+			break;
+
 		case WM_SYSCOMMAND:
 			OnSysCommand(wParam, lParam);
 			res = FALSE ;	// let system do the default
@@ -634,6 +669,10 @@ protected:
 			SetScreenFormat();
 			break;
 
+		case WM_OPENDVRFILE:
+			OpenDVRFile( (string *)lParam);
+			break;
+
 		default:
 			res = Dialog::DlgProc( message, wParam, lParam ) ;
 		}
@@ -653,7 +692,7 @@ struct screenrect {
 };
 
 struct screenmode {
-	TCHAR * screenname ;
+	const TCHAR * screenname ;
 	int numscreen ;		// number of screens
 	int xnum, ynum ;	// screen ratio
 	screenrect * screen ;
@@ -663,8 +702,6 @@ struct screenmode {
 
 extern struct screenmode screenmode_table[] ;
 extern int screenmode_table_num ;
-extern int g_screenmode ;
-extern int g_singlescreenmode ;				// 1: single screen mode
 extern int g_ratiox ;                      // screen ratio (4:3) or (16:9)
 extern int g_ratioy ;
 
@@ -696,7 +733,8 @@ extern int g_ratioy ;
 
 extern HWND g_mainwnd ;
 extern DvrclientDlg * g_maindlg ;
-extern int	 g_minitracksupport ;
+extern int	g_minitracksupport ;
+extern int  g_subviewsupport ;
 
 extern string  g_username ;
 extern int     g_usertype ;		// priviages
@@ -712,7 +750,7 @@ extern int top_ctrl_id[];
 struct btbar_ctl {
 	int id ;
 	int xadj ;				// positive, offert to x=0, nagtive, offset to x=w
-	TCHAR * imgname ;       // reference control size
+	LPCTSTR imgname ;       // reference control image (size)
 	int showmask ;			// bit0: default, bit1: live mode, bit2: playbackmode
 } ;
 

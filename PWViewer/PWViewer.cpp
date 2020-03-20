@@ -28,6 +28,8 @@ const int control_align = 0 ;       // control layout, 0: left, 1: right ;
 const int btbar_refid = IDC_SLIDER_VOLUME;	// Volue Slider as ref
 const int btbar_align = -5;		// >=0: left align, <0: right align
 
+#include "crtdbg.h"  
+
 int APIENTRY WinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
                      LPSTR     lpCmdLine,
@@ -36,7 +38,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
     
-	DvrclientDlg dlg ;
-	dlg.DoModal();
+	DvrclientDlg * dlg = new DvrclientDlg();
+	dlg->DoModal();
+	delete dlg;
+
 	return 0 ;
 }

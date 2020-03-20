@@ -7,13 +7,13 @@
 //   password: null terminated password string, maximum 256 bytes
 //   k256: key array, 256 bytes
 // For RC4 cryption
-void key_256( char * password, unsigned char * k256);
+void key_256( const char * password, unsigned char * x256);
 
 // Convert plain text password to 16 bytes (128bits) key block
 //   password: null terminated password string, maximum 256 bytes
 //   k16: key array, 16 bytes
 // For XTEA cryption
-void key_16( char * password, unsigned char * k16);
+void key_16( const char * password, unsigned char * k16);
 
 
 // RC4

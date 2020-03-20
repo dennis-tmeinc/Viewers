@@ -5,12 +5,6 @@
 
 #include "CallTmeDlg.h"
 
-int user_checkpassword( char * username, char * password );
-int user_adduser( char * username, char * password, int newusertype );
-int user_deleteuser( char * username ) ;
-int user_getuser(int index,  string & listuser);
-void user_Getcode( char * password, char * code );
-
 // Login dialog
 
 class LoginDlg : public Dialog

@@ -8,11 +8,11 @@
 #pragma comment (lib, "Ws2_32.lib")
 
 // Windows Header Files:
-#include <Commdlg.h>
+#include <commdlg.h>
 #include <winsock2.h>
 #include <winioctl.h>
 #include <ws2tcpip.h>
-#include <Shellapi.h>
+#include <shellapi.h>
 
 // C RunTime Header Files
 #include <stdio.h>
@@ -27,9 +27,6 @@
 #include "cwin.h"
 #include "cdir.h"
 
-// static member of WaitCursor
-int WaitCursor::m_count = 0;
-
 // global functions
 
 void dbgout( char * format, ... ) 
@@ -42,8 +39,40 @@ void dbgout( char * format, ... )
     va_end( ap );
 }
 
-static char subkey[] = "Software\\TME\\" ;
-int reg_save( char * appname, char * name, char * value )
+static const char subkey[] = "Software\\TME\\" ;
+
+/* misc app init */
+void app_init() 
+{
+	/* seed random number generator*/
+	srand(GetTickCount());
+	/* set apppath as current director, to fix ply266 subview black screen error! */
+	chdir(getapppath());
+}
+
+// get application name
+char * getappname()
+{
+	static char _appname[64];
+	if (_appname[0] == 0) {
+		char * pappname;
+		string tpath;
+		GetModuleFileName(NULL, tpath.tcssize(512), 511);
+		pappname = (char *)tpath;
+		char * slash = strrchr(pappname, '\\');
+		if (slash) {
+			pappname = slash + 1;
+		}
+		char * dot = strrchr(pappname, '.');
+		if (dot != NULL) {
+			*dot = 0;
+		}
+		strncpy(_appname, pappname, 64);
+	}
+	return _appname;
+}
+
+int reg_save( const char * appname, const char * name, const char * value )
 {
 	string pwsubkey(subkey);
 	pwsubkey += appname ;
@@ -52,9 +81,9 @@ int reg_save( char * appname, char * name, char * value )
         return 0 ;
     }
 
-	string sname = name;
-	string svalue = value;
-    
+	string sname(name);
+	string svalue(value);
+
 	if (value == NULL || strlen(value) == 0) {
 		RegDeleteValue(key, sname);
 	}
@@ -67,7 +96,7 @@ int reg_save( char * appname, char * name, char * value )
 }
 
 // save integer
-int reg_save(char * appname, char * name, int value)
+int reg_save(const char * appname, const char * name, int value)
 {
 	if (value == -1) {
 		return reg_save(appname, name, (char *)NULL);
@@ -77,11 +106,23 @@ int reg_save(char * appname, char * name, int value)
 	}
 }
 
-int reg_read( char * appname, char * name, string &value )
+// over loaded registrey functions
+int reg_save( const char * name, const char * value )
+{
+	return reg_save(getappname(), name, value );
+}
+
+// save integer
+int reg_save( const char * name, int value )
+{
+	return reg_save(getappname(), name, value );
+}
+
+int reg_read(const char * appname, const char * name, string &value)
 {
 	string pwsubkey(subkey);
-	pwsubkey += appname ;
-    HKEY  key = NULL ;
+	pwsubkey += appname;
+	HKEY  key = NULL;
 
 	if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, pwsubkey, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &key, NULL) != ERROR_SUCCESS) {
 		if (RegCreateKeyEx(HKEY_CURRENT_USER, pwsubkey, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &key, NULL) != ERROR_SUCCESS) {
@@ -89,79 +130,44 @@ int reg_read( char * appname, char * name, string &value )
 		}
 	}
 
-    DWORD type, rsize ;
-    string sname, svalue ;
-    sname = name ;
-    svalue.wcssize( 200 );
-    rsize = sizeof(wchar_t)*200 ;
-    type = REG_SZ ;
+	DWORD type, rsize;
+	string sname, svalue;
+	sname = name;
+	svalue.wcssize(200);
+	rsize = sizeof(wchar_t) * 200;
+	type = REG_SZ;
 
-    if( RegQueryValueEx( key, sname, 0, &type, (BYTE *)(wchar_t *)svalue, &rsize )==ERROR_SUCCESS ){
-		value = svalue ;
-        RegCloseKey( key );
-        return 1;
-    }
-    else {
-        RegCloseKey( key );
-        return 0 ;
-    }
+	if (RegQueryValueEx(key, sname, 0, &type, (BYTE *)(wchar_t *)svalue, &rsize) == ERROR_SUCCESS) {
+		value = svalue;
+		RegCloseKey(key);
+		return 1;
+	}
+	else {
+		RegCloseKey(key);
+		return 0;
+	}
 }
 
 // read integer value, for error return -1 ;
-int reg_read( char * appname, char * name )
+int reg_read(const char * appname, const char * name)
 {
-	int r ;
-	string ivalue ;
-	if( reg_read( appname, name, ivalue ) ) {
-		if( sscanf( ivalue, "%d", &r )==1 ) {
-			return r ;
+	int r;
+	string ivalue;
+	if (reg_read(appname, name, ivalue)) {
+		if (sscanf(ivalue, "%d", &r) == 1) {
+			return r;
 		}
 	}
-	return -1 ;
+	return -1;
 }
 
-static char _appname[64] = "";
-
-// get application name
-char * getappname()
-{
-	if( _appname[0] == 0 ) {
-		char * pappname ;
-		string tpath ;
-		GetModuleFileName(NULL, tpath.tcssize(512), 511 );
-		pappname = (char *)tpath ;
-		char * slash = strrchr( pappname, '\\' );
-		if( slash ) {
-			pappname = slash+1 ;
-		}
-		char * dot = strrchr( pappname, '.' );
-		if( dot!=NULL ) {
-			*dot = 0 ;
-		}
-		strncpy( _appname, pappname, 64 );
-	}
-	return _appname ;
-}
-
-// over loaded registrey functions
-int reg_save( char * name, char * value )
-{
-	return reg_save(getappname(), name, value );
-}
-
-// save integer
-int reg_save( char * name, int value )
-{
-	return reg_save(getappname(), name, value );
-}
-
-int reg_read( char * name, string &value )
+int reg_read(const char * name, string &value)
 {
 	return reg_read(getappname(), name, value );
 }
 
 // read integer value, for error return -1 ;
-int reg_read( char * name )
+int reg_read( const char * name )
 {
 	int r ;
 	string ivalue ;
@@ -192,7 +198,7 @@ void option_close( void * op )
 	fclose( (FILE *)op );
 }
 
-string * option_get( void * op, char * key )
+string * option_get( void * op, const char * key )
 {
 	char * li ;
 	char * eq ;
@@ -216,7 +222,7 @@ string * option_get( void * op, char * key )
 	return NULL ;
 }
 
-string * option_getvalue( char * key )
+string * option_getvalue( const char * key )
 {
 	string * res = NULL ;
 	void * ofile = option_open();
@@ -257,6 +263,21 @@ struct dvrtime time_now()
 	GetLocalTime( &st );
 	time_timedvr( &st, &now );
 	return now ;
+}
+
+// return time "2000-1-1 00:00:00" as reference
+struct dvrtime time_2000()
+{
+	struct dvrtime t2000;
+	t2000.year = 2000;
+	t2000.month = 1;
+	t2000.day = 1;
+	t2000.hour = 0;
+	t2000.min = 0;
+	t2000.second = 0;
+	t2000.millisecond = 0;
+	t2000.tz = 0;
+	return t2000;
 }
 
 struct dvrtime * time_timedvr(SYSTEMTIME * psystime, struct dvrtime * dt)
@@ -346,6 +367,48 @@ int getfilepath(string & appfile)
 	return 1 ;
 }
 
+const char * getTempFolder(string & tmpfolder)
+{
+	GetTempPath(500, tmpfolder.tcssize(512));
+	tmpfolder += getappname();
+	mkdir(tmpfolder);
+	return (const char *)tmpfolder;
+}
+
+static void _tmpn(char * t, int r)
+{
+	for (int i = 0; i < 3; i++) {
+		int m = r % 36;
+		if (m < 26) {
+			t[i] = 'a' + m;
+		}
+		else {
+			t[i] = '0' + m - 26;
+		}
+		r /= 36;
+	}
+	t[3] = 0;
+}
+
+const char * mkTempFileName(const char * prefix, const char * ext, string & tmpfilename)
+{
+	if (prefix == NULL) prefix = "tmp";
+	if (ext == NULL) ext = "";
+	int r = rand();
+	// generate non-existed temp file name
+	string tmpfolder;
+	getTempFolder(tmpfolder);
+	for (int i = 0; i < 10000; i++) {
+		char rn[4];
+		_tmpn(rn, r + i);
+		tmpfilename.printf( "%s\\%s%s.%s", (char *)tmpfolder, prefix, rn, ext);
+		DWORD attr = GetFileAttributes(tmpfilename);
+		if (attr == INVALID_FILE_ATTRIBUTES) 
+			return (const char *)tmpfilename;
+	}
+	return NULL;
+}
+
 static DWORD portable_tag[2] = {
 	PORTABLE_FILE_TAG1,
 	PORTABLE_FILE_TAG2
@@ -365,7 +428,7 @@ int copyportablefiles(char * targetfile, char * password)
 		FILE * fdfile ;
 
 		// put target file name to fname
-		string fname = (slash+1) ;
+		string fname(slash+1) ;
 		*(slash+1) = 0 ;
 
 		// create portable autoplay executable file folder
@@ -380,7 +443,7 @@ int copyportablefiles(char * targetfile, char * password)
 
 		string app_path;
 		GetModuleFileName(NULL, app_path.tcssize(512), 511);
-		string _app_path_clone = (char *)app_path;
+		string _app_path_clone (app_path);
 		char * app_dir = (char *)_app_path_clone;
 		char * slash = strrchr(app_dir, '\\');
 		*slash = 0;
@@ -652,9 +715,9 @@ static int httpget( char * url, char * buffer, int buffersize)
 }
 
 // load an image, (original)
-Bitmap * loadimage( LPCTSTR resource )
+Gdiplus::Bitmap * loadimage( LPCTSTR resource )
 {
-    Bitmap * img = NULL ;
+    Gdiplus::Bitmap * img = NULL ;
     MemoryStream *memoryStream ;
     string res ;
 	res = resource ;
@@ -670,7 +733,7 @@ Bitmap * loadimage( LPCTSTR resource )
                 httpimg+=4 ;
                 imgsize-=httpimg-httpbuffer ;
                 memoryStream=new MemoryStream( httpimg, imgsize, 1 );
-                img = Bitmap::FromStream(memoryStream) ;
+                img = Gdiplus::Bitmap::FromStream(memoryStream) ;
                 memoryStream->Release();
             }
         }
@@ -692,7 +755,7 @@ Bitmap * loadimage( LPCTSTR resource )
 	LPVOID pres =LockResource( hresmem );
 	DWORD sizeres = SizeofResource(Window::ResInst(), hres );
 	memoryStream=new MemoryStream( pres, sizeres, 1 ) ;
-    img = Bitmap::FromStream(memoryStream) ;
+    img = Gdiplus::Bitmap::FromStream(memoryStream) ;
     memoryStream->Release();
     if( img ) {
         if( img->GetLastStatus() == Ok ) {
@@ -706,19 +769,18 @@ Bitmap * loadimage( LPCTSTR resource )
     return NULL ;
 }
 
-
 // load bitmap, duplicated a new 32 bits bmp to make it strechable
-Bitmap*	loadbitmap( LPCTSTR resource )
+Gdiplus::Bitmap*	loadbitmap( LPCTSTR resource )
 {
-    Bitmap * img = loadimage(resource);
+	Gdiplus::Bitmap* img = loadimage(resource);
     if( img ) {
         BitmapData bitmapDataSource ;
         BitmapData bitmapDataDest ;
         Rect rect(0, 0,  img->GetWidth(), img->GetHeight());
         img->LockBits( &rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapDataSource );
-        Bitmap * bmp = new Bitmap(bitmapDataSource.Width, bitmapDataSource.Height, PixelFormat32bppARGB );
+		Gdiplus::Bitmap* bmp = new Gdiplus::Bitmap(bitmapDataSource.Width, bitmapDataSource.Height, PixelFormat32bppARGB );
         bitmapDataDest = bitmapDataSource ;
-        bitmapDataDest.Reserved = NULL;
+        bitmapDataDest.Reserved = 0;
         bmp->LockBits( &rect, 
             ImageLockModeWrite|ImageLockModeUserInputBuf,
             PixelFormat32bppARGB,
@@ -733,18 +795,35 @@ Bitmap*	loadbitmap( LPCTSTR resource )
 
 int GetEncoderClsid(LPCTSTR filename, CLSID* pClsid)
 {
-   UINT  num = 0;          // number of image encoders
-   UINT  size = 0;         // size of the image encoder array in bytes
+	UINT  num = 0;          // number of image encoders
+	UINT  size = 0;         // size of the image encoder array in bytes
 
-   ImageCodecInfo* pImageCodecInfo = NULL;
-   GetImageEncodersSize(&num, &size);
-   if(size == 0)
-      return -1;  // Failure
+	ImageCodecInfo* pImageCodecInfo = NULL;
+	GetImageEncodersSize(&num, &size);
+	if(size == 0)
+		return -1;  // Failure
 
-   int  ext = _tcsclen(filename);
-   while( --ext>0 ) {
-       if( filename[ext]=='.' ) break;
-   }
+	TCHAR ext[10];
+	ext[0] = 0;
+	int fe = _tcslen(filename);
+	while (--fe > 0) {
+		if (filename[fe] == '.') {
+			int e = 0;
+			while (e < 10) {
+				TCHAR c = filename[fe];
+				if (c >= 'a' && c <= 'z') {
+					c -= 'a' - 'A';
+				}
+				ext[e] = c;
+				if (c == 0) {
+					break;
+				}
+				e++; fe++;
+			}
+			break;
+		}
+	}
+
    pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
    if(pImageCodecInfo == NULL)
       return -1;  // Failure
@@ -753,7 +832,7 @@ int GetEncoderClsid(LPCTSTR filename, CLSID* pClsid)
 
    for(UINT j = 0; j < num; ++j)
    {
-       if( _tcsstr( pImageCodecInfo[j].FilenameExtension, &filename[ext])!=NULL ) {
+       if( _tcsstr( pImageCodecInfo[j].FilenameExtension, ext)!=NULL ) {
          *pClsid = pImageCodecInfo[j].Clsid;
          free(pImageCodecInfo);
          return j;  // Success
@@ -776,7 +855,7 @@ int savebitmap( LPCTSTR savefilename, Bitmap* pbmp  )
 }
 
 // open html setup dialog
-int openhtmldlg( char * servername, char * page )
+int openhtmldlg( const char * servername, const char * page )
 {
 	ShellExecute(NULL, _T("open"), 
 		TMPSTR("http://%s%s", servername, page),

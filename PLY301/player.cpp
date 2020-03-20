@@ -440,7 +440,7 @@ void blur( unsigned char *pix, int pitch, int bx, int by, int bw, int bh, int ra
             if( shape == 0 ){
                 pixline[ yi ] = csum/div ;
             }
-            else {
+            else if( shape == 1) {
                 int dx = x-a ;
                 int dy = y-b ;
                 if( 512*dx*dx/aa + 512*dy*dy/bb < 512 ) {

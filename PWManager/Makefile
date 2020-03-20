@@ -2,10 +2,17 @@
 #
 #
 #
+PREFIX=x86_64-w64-mingw32-
+#PREFIX=i686-w64-mingw32-
+CC=$(PREFIX)gcc
+WINDRES=$(PREFIX)windres
+STRIP=$(PREFIX)strip
+
+CFLAGS =  -v # -I/usr/share/mingw-w64/include 
 
 WINFLAGS = -I. -I../common -D_UNICODE -DUNICODE -D__MINGW__ -DWINVER=0x0501 -D_WIN32_IE=0x600
-CFLAGS = $(WINFLAGS) -s -O2 -mwindows
-LFLAGS = -lgdiplus -lcomctl32 -lversion -lole32 -luuid -lnetapi32 -lwinmm -lws2_32 -loleaut32 -static-libstdc++ -static-libgcc
+CFLAGS += $(WINFLAGS) -O2 -mwindows
+LFLAGS = -lgdiplus -lcomctl32 -lversion -lurlmon -lole32 -luuid -lnetapi32 -lwinmm -lws2_32 -loleaut32 -lsupc++
 
 TARGET = PWManager
 
@@ -26,16 +33,18 @@ HEADERS = PWManager.h \
 
 OBJS = $(patsubst %.cpp, %.o, $(SOURCES))
 		
-$(TARGET).exe : $(OBJS) $(TARGET)_res.o
-	g++ $(CFLAGS) -o $@ $^ ../Debug/tmeid.dll /c/windows/system32/urlmon.dll $(LFLAGS)
-	cp $@ ../Debug/
-	cp $@ ../Release/
+$(TARGET).exe : $(OBJS) $(TARGET)_res.o 
+	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
+	$(STRIP) $@
 
 $(TARGET)_res.o : $(TARGET).rc
-	windres $(WINFLAGS) $(TARGET).rc $@
+	$(WINDRES) $(WINFLAGS) $(TARGET).rc $@
 
 %.o : %.cpp $(HEADERS)
-	g++ $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 	
+../tmeid/tmeid.dll:
+	$(MAKE) -C ../tmeid
+
 clean :
 	rm -f $(TARGET).exe $(OBJS) *.o

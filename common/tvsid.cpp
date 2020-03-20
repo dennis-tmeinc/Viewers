@@ -3,7 +3,7 @@
 
 #include "stdafx.h"
 
-#include <Windows.h>
+#include <windows.h>
 #include <shellapi.h>
 
 #include "stdio.h"
@@ -56,7 +56,7 @@ int DiskSerialId(int disknum, char * serialid, int idlen )
 
 static char tvsdata [8000] ;
 struct tvskey_data * tvskeydata ;
-char * powerid = 
+const char * powerid = 
 	"IDE\\DiskWDC_WD5000AAKS-65V0A0___________________05.01D05\\4&2a33c906&0&0.0.0" ;
 //	"IDE\\DiskWDC_WD10EZEX-22RKKA0____________________80.00A80\\4&2a33c906&0&0.0.0" ;
 
@@ -112,7 +112,7 @@ struct tvskey_data * tvs_readtvskey()
 
 	if( fsize==0 ) {
         // check local key file
-        string keyfilename="TVSKEY.DAT" ;
+        string keyfilename("TVSKEY.DAT") ;
         if( getfilepath(keyfilename) ) {
             keyfile = fopen( keyfilename, "rb" );
             if( keyfile ) {
@@ -325,14 +325,13 @@ struct tvskey_data * tvs_readtvskey()
                         idfile = fopen( fname, "wb" );
                         if( idfile ) {
                             // duplicate key
-							pkey=powerid ;
-                            strncpy( tvskey_data->usbkeyserialid, pkey, sizeof(tvskey_data->usbkeyserialid) );
+                            strncpy( tvskey_data->usbkeyserialid, powerid, sizeof(tvskey_data->usbkeyserialid) );
 
 							// erase passwords
 							memset( tvskey_data->mfpassword, 0, sizeof( tvskey_data->mfpassword ) );
 							memset( tvskey_data->plpassword, 0, sizeof( tvskey_data->plpassword ) );
 
-                            key_256( pkey, k256 ) ;
+                            key_256( powerid, k256 ) ;
                             RC4_KSA( &rc4seed, k256 );
                             // calculate checksum
                             md5_checksum( tvskey_data->checksum, (unsigned char *)(&(tvskey_data->size)), tvskey_data->size );

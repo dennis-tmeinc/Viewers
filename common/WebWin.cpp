@@ -175,8 +175,10 @@ int WebWindow::ExecScript(LPTSTR script) {
 							VARIANT var;
 							VariantInit(&var);
 							BSTR x_script = SysAllocString(script);
-							htmlWindow->execScript(x_script, L"JavaScript", &var);
+							BSTR x_js = SysAllocString(L"JavaScript");
+							htmlWindow->execScript(x_script, x_js, &var);
 							htmlWindow->Release();
+							SysFreeString(x_js);
 							SysFreeString(x_script);
 							VariantClear(&var);
 							res = 1;

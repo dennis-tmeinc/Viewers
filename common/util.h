@@ -6,6 +6,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
+#include <winsock2.h>
 #include <windows.h>
 #include <objidl.h>
 #include <gdiplus.h>
@@ -213,23 +214,18 @@ public:
 
 };
 
-
 class WaitCursor 
 {
-protected:
-	static int m_count;
+private:
+	HCURSOR prevCursor;
 public:
 	WaitCursor(){
-		if (m_count++ <= 0) {
-			::SetCursor(LoadCursor(NULL, (LPCTSTR)IDC_WAIT));
-			// ShowCursor(TRUE);
-		}
+		prevCursor = SetCursor(LoadCursor(NULL, (LPCTSTR)IDC_WAIT));
+		ShowCursor(TRUE);
 	}
 	~WaitCursor(){
-		if (--m_count <= 0 ) {
-			// ::SetCursor(LoadCursor(NULL, (LPCTSTR)IDC_ARROW));
-			// ShowCursor(FALSE);
-		}
+		ShowCursor(FALSE);
+		SetCursor(prevCursor);
 	}
 };
 
@@ -239,10 +235,14 @@ int time_compare(struct dvrtime & t1, struct dvrtime &t2);
 int operator- ( struct dvrtime &t1, struct dvrtime &t2) ;
 void time_add(struct dvrtime &t, int seconds);
 struct dvrtime time_now();
+struct dvrtime time_2000();
 
+void app_init();
 char * getapppath();
 // char * getappname();
 int getfilepath(string & appfile);
+const char * getTempFolder(string & tmpfolder);
+const char * mkTempFileName(const char * prefix, const char * ext, string & tmpfilename);
 
 #define PORTABLE_FILE_TAG1	(0x170cb1a6)
 #define PORTABLE_FILE_TAG2	(0x92489386)
@@ -254,32 +254,33 @@ HRESULT CreateLink( LPCSTR PathObj, LPCSTR PathLink, LPCSTR Desc) ;
 
 // load an image to CImage
 // int	loadimg( CImage * pimg, LPCTSTR resource );
-Bitmap * loadimage( LPCTSTR resource );
-Bitmap * loadbitmap( LPCTSTR resource );
+Gdiplus::Bitmap * loadimage( LPCTSTR resource );
+Gdiplus::Bitmap * loadbitmap( LPCTSTR resource );
 int savebitmap( LPCTSTR savefilename, Bitmap* pbmp  );
-int openhtmldlg( char * servername, char * page );
+int openhtmldlg( const char * servername, const char * page );
 int	openfolder(HWND hparent, string &folder);
 
-int reg_save( char * appname, char * name, char * value );
+int reg_save(const char * appname, const char * name, const char * value);
 // save integer
-int reg_save( char * appname, char * name, int value );
-int reg_read( char * appname, char * name, string &value );
-// read integer value, for error return -1 ;
-int reg_read( char * appname, char * name );
-
+int reg_save(const char * appname, const char * name, int value );
 // over loaded registrey functions
-int reg_save( char * name, char * value );
+int reg_save( const char * name, const char * value );
 // save integer
-int reg_save( char * name, int value );
-int reg_read( char * name, string &value );
+int reg_save(const char * name, int value );
+
+int reg_read(const char * appname, const char * name, string &value);
 // read integer value, for error return -1 ;
-int reg_read( char * name );
+int reg_read(const char * appname, const char * name);
+// read string value
+int reg_read( const char * name, string &value );
+// read integer value, for error return -1 ;
+int reg_read( const char * name );
 
 // options file op
 void * option_open();
 void option_close( void * op );
-string * option_get( void * op, char * key );
-string * option_getvalue( char * key );
+string * option_get( void * op, const char * key );
+string * option_getvalue( const char * key );
 
 // save image support
 int GetEncoderClsid(LPCTSTR filename, CLSID* pClsid);

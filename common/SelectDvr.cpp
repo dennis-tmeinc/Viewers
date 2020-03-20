@@ -2,7 +2,7 @@
 //
 #include "stdafx.h"
 
-#include <Shlobj.h>
+#include <shlobj.h>
 
 #include "dvrclient.h"
 #include "SelectDvr.h"

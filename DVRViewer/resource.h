@@ -31,6 +31,7 @@
 #define IDD_DIALOG_MAKECLIP             147
 #define IDD_DIALOG_AOI_NAME             148
 #define IDD_DIALOG_MAKECLIP2            149
+#define IDD_DIALOG_DRIVEBYREPORT        150
 #define IDC_BUTTON1                     1000
 #define IDC_BUTTON_BROWSEFILENAME       1000
 #define IDC_USERNAME                    1001
@@ -139,6 +140,15 @@
 #define IDC_COMBO_AOINAME               1118
 #define IDC_CHECK_ENABLE_ENC            1122
 #define IDC_CHECK1                      1122
+#define IDC_CHECK_OPENPDF               1122
+#define IDC_EDIT_BUSID                  1124
+#define IDC_EDIT_PLATE                  1125
+#define IDC_EDIT_ADDRESS                1126
+#define IDC_EDIT_NOTE                   1127
+#define IDC_STATIC_PICTURE0             1128
+#define IDC_STATIC_PICTURE1             1129
+#define IDC_STATIC_PICTURE3             1130
+#define IDC_STATIC_PICTURE2             1131
 #define IDC_EDIT_PASSWORD1              1146
 #define ID_HELP_NOTHING                 32771
 #define ID_FILE_CONNECT                 32772
@@ -256,9 +266,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        150
+#define _APS_NEXT_RESOURCE_VALUE        151
 #define _APS_NEXT_COMMAND_VALUE         32881
-#define _APS_NEXT_CONTROL_VALUE         1123
+#define _APS_NEXT_CONTROL_VALUE         1132
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif

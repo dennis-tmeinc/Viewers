@@ -10,11 +10,10 @@
 #include "UserPass.h"
 
 #include "cstr.h"
-#include "../common/cdir.h"
+#include "cdir.h"
 
 decoder_library::decoder_library(LPCTSTR libname)
 {
-
 	busy=0 ;
 	filedate = 0 ;
 	libtype = 0 ;
@@ -31,8 +30,8 @@ decoder_library::decoder_library(LPCTSTR libname)
 	initsmartserver = (int (*)(HPLAYER))getapi( "initsmartserver");
 	openremote = (HPLAYER (*)(char *, int))getapi( "openremote");
 	openharddrive = (HPLAYER (*)(char *))getapi( "openharddrive");
-	openfile = (HPLAYER (*)(char *))getapi( "openfile");
-	opendvr = (HPLAYER(*)(char *))getapi("opendvr");
+	openfile = (HPLAYER (*)(const char *))getapi( "openfile");
+	opendvr = (HPLAYER(*)(const char *))getapi("opendvr");
 
 	close =(int (*)(HPLAYER)) getapi( "close");
 	if( close==NULL ) {
@@ -57,6 +56,7 @@ decoder_library::decoder_library(LPCTSTR libname)
 	getdecframes = (int (*)(HPLAYER))getapi( "getdecframes");
 	backward = (int (*)(HPLAYER, int))getapi( "backward");
 	capture = (int (*)(HPLAYER, int, char *))getapi( "capture");
+	capture2 = (int (*)(HPLAYER, int, HWND, char*))getapi("capture2");
 	capturewindow = (int (*)(HPLAYER, HWND, char *))getapi( "capturewindow");
 	seek = (int (*)(HPLAYER, dvrtime *))getapi( "seek");
 	getcurrenttime = (int (*)(HPLAYER, dvrtime *))getapi( "getcurrenttime");
@@ -450,7 +450,7 @@ int decoder::openharddrive( char * path )
 	return DVR_ERROR ;
 }
 
-int decoder::openfile( char * dvrfilename ) 
+int decoder::openfile( const char * dvrfilename ) 
 {
 	int i ;
 
@@ -501,7 +501,7 @@ int decoder::openfile( char * dvrfilename )
 }
 
 // open dvr by name (for playback)
-int decoder::opendvr(char * dvrname)
+int decoder::opendvr(const char * dvrname)
 {
 	int i;
 
@@ -673,6 +673,10 @@ int decoder::play()
 	int res = DVR_ERROR ;
 	char * password ;
 	if( m_hplayer!=NULL && library[m_library]->play ) {
+		// ply266 would hang when play videos from bodycam,
+		// Try to give ply266 some time to complete backgound task before play(), looks like it works.
+		// (by dennis@tme 2019-01-10)
+		Sleep(20);
 		res = library[m_library]->play(m_hplayer);
 		if( res == DVR_ERROR_FILEPASSWORD ) {			// need to provide password
 			// try old password
@@ -820,78 +824,73 @@ int decoder::backward(int speed )
 		return DVR_ERROR ; 
 }
 
-int decoder::capture(int channel, char * capturefilename )
+int decoder::capture(int channel, HWND hscreen, char * capturefilename )
 {
-	if( m_hplayer!=NULL && library[m_library]->capture ) {
+	if (m_hplayer != NULL && library[m_library]->capture2) {
+		return library[m_library]->capture2(m_hplayer, channel, hscreen, capturefilename);
+	}
+	else if (m_hplayer != NULL && library[m_library]->capture) {
 		return library[m_library]->capture(m_hplayer, channel, capturefilename );
 	}
 	else
 		return DVR_ERROR ; 
 }
 
-int decoder::capturewindow(HWND hwnd, char * capturefilename )
-{
-	if( m_hplayer!=NULL && library[m_library]->capturewindow ) {
-		return library[m_library]->capturewindow(m_hplayer, hwnd, capturefilename );
-	}
-	else
-		return DVR_ERROR ; 
-}
-
-int decoder::seek(struct dvrtime * t )
+int decoder::seek(struct dvrtime * t)
 {
 	int i;
-	int retry ;
-	int res = DVR_ERROR ;
-	char * password ;
-	if( m_hplayer!=NULL && library[m_library]->seek ) {
+	int retry;
+	int res = DVR_ERROR;
+	char * password;
+	if (m_hplayer != NULL && library[m_library]->seek) {
 		res = library[m_library]->seek(m_hplayer, t);
-		if( res == DVR_ERROR_FILEPASSWORD ) {			// need to provide password
+		Sleep(2);
+		if (res == DVR_ERROR_FILEPASSWORD) {			// need to provide password
 			// try old password
-			for( i=0; i<DECODER_PASSWORD_NUMBER; i++) {
-				password = (char *)m_password[i] ;
-				if(*password!=0 ) {
-					setvideokey(password, strlen(password)+1);
+			for (i = 0; i < DECODER_PASSWORD_NUMBER; i++) {
+				password = (char *)m_password[i];
+				if (*password != 0) {
+					setvideokey(password, strlen(password) + 1);
 					res = library[m_library]->seek(m_hplayer, t);
-					if( res!=DVR_ERROR_FILEPASSWORD ) {
-						return res ;
+					if (res != DVR_ERROR_FILEPASSWORD) {
+						return res;
 					}
 				}
 			}
 			// ask for user input
-			for( retry=0; retry<3; retry++ ) {
-				VideoPassword askpassword ;
-				if( askpassword.DoModal(IDD_DIALOG_VIDEOPASSWORD)==IDOK ) {
-					password = (char *)(askpassword.m_password) ;
-					setvideokey(password, strlen(password)+1);
+			for (retry = 0; retry < 3; retry++) {
+				VideoPassword askpassword;
+				if (askpassword.DoModal(IDD_DIALOG_VIDEOPASSWORD) == IDOK) {
+					password = (char *)(askpassword.m_password);
+					setvideokey(password, strlen(password) + 1);
 					res = library[m_library]->seek(m_hplayer, t);
-					if( res == DVR_ERROR_FILEPASSWORD ) {       // password error
-						continue ;              // retry 3 times
+					if (res == DVR_ERROR_FILEPASSWORD) {       // password error
+						continue;              // retry 3 times
 					}
-					else if( res == 0 ) {
+					else if (res == 0) {
 						// add working pasword into password list
-						for( i=0; i<DECODER_PASSWORD_NUMBER; i++) {
-							if( *(char *)m_password[i] == 0 ) {
-								m_password[i]=password ;
+						for (i = 0; i < DECODER_PASSWORD_NUMBER; i++) {
+							if (*(char *)m_password[i] == 0) {
+								m_password[i] = password;
 								break;
 							}
 						}
-						if( i==DECODER_PASSWORD_NUMBER ) {
+						if (i == DECODER_PASSWORD_NUMBER) {
 							// no empty slot? pick one
-							i= ((unsigned char)*password) % DECODER_PASSWORD_NUMBER ;
-							m_password[i]=password ;
+							i = ((unsigned char)*password) % DECODER_PASSWORD_NUMBER;
+							m_password[i] = password;
 						}
 					}
 					break;
 				}
-				else {
+				else
+				{
 					break;
 				}
 			}
 		}
 	}
-
-	return res ; 
+	return res;
 }
 
 int decoder::getcurrenttime(struct dvrtime * t )
@@ -1365,16 +1364,38 @@ int decoder::setrotation(int channel, int degree)
 }
 
 
+/* attachview can only be called on already playing channel (main channel)
+ * Once attached, it can be detached separately with detachwindow() */
+// PLY266_API	int attachview(HPLAYER handle, int channel, HWND hwnd, int view);
+int decoder::supportattachview()
+{
+	return (m_hplayer != NULL && library[m_library] && library[m_library]->getapi("attachview") != NULL);
+}
+
+int decoder::attachview(int channel, HWND hwnd, int view)
+{
+	typedef int(*_f)(HPLAYER handle, int channel, HWND hwnd, int view);
+	if (m_hplayer != NULL && library[m_library])
+	{
+		_f f = (_f)library[m_library]->getapi("attachview");
+		if (f) {
+			return f(m_hplayer, channel, hwnd, view);
+		}
+		return DVR_ERROR;
+	}
+	return DVR_ERROR;
+}
+
 int decoder::g_close()
 {
-	int i; 
-	g_playstat=PLAY_STOP;
-	for(i=0; i<MAXDECODER; i++ ) {
+	int i;
+	g_playstat = PLAY_STOP;
+	for (i = 0; i < MAXDECODER; i++) {
 		g_decoder[i].detach();
 		g_decoder[i].close();
 	}
-	g_minitrack_used=0;     //assume minitrack interface also closed
-	return 0 ;
+	g_minitrack_used = 0;     //assume minitrack interface also closed
+	return 0;
 }
 
 int decoder::g_play()

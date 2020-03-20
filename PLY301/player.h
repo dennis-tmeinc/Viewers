@@ -168,7 +168,7 @@ struct hd_subframe {
 #define HIKPLAY_STAT_PLAY		(100)
 #define HIKPLAY_STAT_FAST		(101)
 
-#define MAX_BLUR_AREA   (10)
+#define MAX_BLUR_AREA   (20)
 
 #define MAX_DRAW_LINES	(10000)
 

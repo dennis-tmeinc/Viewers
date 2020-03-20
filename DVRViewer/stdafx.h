@@ -14,11 +14,12 @@
 #define _CRT_RAND_S
 
 // Windows Header Files:
+#include <winsock2.h>
 #include <windows.h>
 #include <mmsystem.h>
 #include <shellapi.h>
 #include <commdlg.h>
-#include <Shlobj.h>
+#include <shlobj.h>
 
 // C RunTime Header Files
 #include <stdlib.h>

@@ -19,23 +19,27 @@
 
 #define DLL_API __declspec(dllimport)
 
+#ifdef __cplusplus
 extern "C" {
-	DLL_API int SetStorage(char * storage);
-	DLL_API int DeleteID(char * id);
+#endif
+	DLL_API int SetStorage(const char * storage);
+	DLL_API int DeleteID(const char * id);
 	DLL_API int ListID(int index, char * id);
-	DLL_API int AddID(char * id, DWORD * key, int idtype);
-	DLL_API int CheckID(char * id, DWORD * key);
-	DLL_API void PasswordToKey(char * password, DWORD *key);
+	DLL_API int AddID(const char * id, DWORD * key, int idtype);
+	DLL_API int CheckID(const char * id, DWORD * key);
+	DLL_API void PasswordToKey(const char * password, DWORD *key);
 	DLL_API void Encode(char * v, int size);
 	DLL_API void Decode(char * v, int size);
+#ifdef __cplusplus
 }
+#endif
 
 void user_setStorage()
 {
 	SetStorage(APPNAME);
 }
 
-int user_checkpassword( char * username, char * password )
+int user_checkpassword( const char * username, const char * password )
 {
 	DWORD key[4] ;
 	PasswordToKey( password, key );
@@ -43,7 +47,7 @@ int user_checkpassword( char * username, char * password )
 }
 
 // Add new user, or change password of existed user
-int user_adduser( char * username, char * password, int newusertype )
+int user_adduser( const char * username, const char * password, int newusertype )
 {
 	DWORD key[4] ;
 	if( g_usertype == IDADMIN || strcmp( username, g_username ) == 0 ){
@@ -56,7 +60,7 @@ int user_adduser( char * username, char * password, int newusertype )
 }
 
 // delete user
-int user_deleteuser( char * username ) 
+int user_deleteuser( const char * username ) 
 {
 	if( strcmp( username, g_username )==0 )
 		return FALSE ;
@@ -102,7 +106,7 @@ static char * user_GenNewPassword(char * pbuf, int psize)
 	return pbuf;
 }
 
-static void user_Getcode( char * password, char * code )
+void user_Getcode(const char * password, char * code)
 {
 	DWORD ecode[4] = { 0,0,0,0 };
 

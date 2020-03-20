@@ -1,4 +1,3 @@
-#pragma once
 
 #include "stdafx.h"
 
@@ -247,17 +246,19 @@ void Cliplist::snapshot_thread()
                     m_screen->m_decoder->oneframeforward();
                     int f = m_screen->m_decoder->getdecframes();
                     if( (f-decframes)>1 ) {
-                        m_screen->m_decoder->capture( m_screen->m_channel, m_snapshot_filename );
+						m_screen->capture(m_snapshot_filename);
                         break ;
                     }
                 }
             }
             else {
                 // do play back for half seconds
-                m_screen->m_decoder->play();
-                Sleep(500);
-                m_screen->m_decoder->capture( m_screen->m_channel, m_snapshot_filename );
-                m_screen->m_decoder->pause();
+				if (m_screen->m_decoder != NULL) {
+					m_screen->m_decoder->play();
+					Sleep(500);
+					m_screen->capture(m_snapshot_filename);
+					m_screen->m_decoder->pause();
+				}
             }
 
             m_snapshot_run = 0 ;

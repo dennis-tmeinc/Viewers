@@ -30,12 +30,12 @@ const int control_align = 0 ;				// control layout, 0: left, 1: right ;
 const int btbar_refid = IDC_SLIDER_VOLUME;	// Volue Slider as ref
 const int btbar_align = -4;					// >=0: left align, <0: right align
 
-int APIENTRY _tWinMain(
-	HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPTSTR lpCmdLine,
-	int nShowCmd)
+int APIENTRY wWinMain(_In_ HINSTANCE ,
+	_In_opt_ HINSTANCE ,
+	_In_ LPWSTR    ,
+	_In_ int )
 {
 	DvrclientDlg().DoModal();
 	return 0;
 }
+

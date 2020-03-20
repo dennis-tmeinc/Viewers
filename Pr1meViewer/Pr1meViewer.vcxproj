@@ -14,21 +14,21 @@
     <ProjectGuid>{EC6B0B73-17B5-43F3-9534-792802F6F327}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Pr1meViewer</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -54,11 +54,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>urlmon.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;version.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comctl32.lib;gdiplus.lib;winmm.lib;ws2_32.lib;$(OutDir)tmeid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AssemblyDebug>true</AssemblyDebug>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -86,6 +88,7 @@
     <None Include="small.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\json.h" />
     <ClInclude Include="Pr1meViewer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -97,18 +100,20 @@
     <ClCompile Include="..\common\Capture.cpp" />
     <ClCompile Include="..\common\Capture4.cpp" />
     <ClCompile Include="..\common\ChangePassword.cpp" />
-    <ClCompile Include="..\common\cJSON.cpp" />
     <ClCompile Include="..\common\cliplist.cpp" />
     <ClCompile Include="..\common\CopyProgress.cpp" />
     <ClCompile Include="..\common\crypt.cpp" />
     <ClCompile Include="..\common\decoder.cpp" />
+    <ClCompile Include="..\common\DropTarget.cpp" />
     <ClCompile Include="..\common\dvrclientDlg.cpp" />
+    <ClCompile Include="..\common\json.cpp" />
     <ClCompile Include="..\common\md5.cpp" />
     <ClCompile Include="..\common\RemoteIpDlg.cpp" />
     <ClCompile Include="..\common\Screen.cpp" />
     <ClCompile Include="..\common\SelectDvr.cpp" />
     <ClCompile Include="..\common\SimpleBrowser.cpp" />
     <ClCompile Include="..\common\sliderbar.cpp" />
+    <ClCompile Include="..\common\SubViewScreen.cpp" />
     <ClCompile Include="..\common\tvsid.cpp" />
     <ClCompile Include="..\common\User.cpp" />
     <ClCompile Include="..\common\UserNew.cpp" />

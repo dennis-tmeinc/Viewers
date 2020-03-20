@@ -147,7 +147,7 @@ struct blur_area {
     int w;
     int h;
     int radius;
-    int shape;      // 0: rectangle, 1: ellipse
+    int shape;      // 0: rectangle, 1: ellipse, 2: inverted rectangle, 3: inverted ellipse
 };
 
 struct zoom_area {
@@ -215,10 +215,10 @@ public:
 	decoder_library(LPCTSTR libname);
 	~decoder_library();
 
-	inline void * getapi(char * apiname) {
+	inline void * getapi(LPCSTR apiname) {
 		if (hmod)
-			return GetProcAddress(hmod, apiname);
-		return NULL;
+			return (void *)GetProcAddress(hmod, apiname);
+		return (void *)NULL;
 	}
 
 	int (*player_init)() ;
@@ -230,8 +230,8 @@ public:
 	HPLAYER (*openremote)(char * netname, int opentype ) ;
 //	int (*scanharddrive)(char * drives, char **servernames, int maxcount);
 	HPLAYER (*openharddrive)( char * path ) ;
-	HPLAYER (*openfile)( char * dvrfilename );
-	HPLAYER (*opendvr)(char * dvrname);
+	HPLAYER (*openfile)( const char * dvrfilename );
+	HPLAYER (*opendvr)(const char * dvrname);
 
 	int(*minitrack_start)(struct dvr_func * dvrfunc, HWND mainwindow);
 	int(*minitrack_selectserver)(void);
@@ -259,6 +259,7 @@ public:
 	int (*getdecframes)( HPLAYER handle );
 	int (*backward)( HPLAYER handle, int speed );
 	int (*capture)( HPLAYER handle, int channel, char * capturefilename );
+	int (*capture2)(HPLAYER handle, int channel, HWND hscreen, char* capturefilename);
 	int (*capturewindow)( HPLAYER handle, HWND hwnd, char * capturefilename );
 	int (*seek)( HPLAYER handle, struct dvrtime * where );
 	int (*getcurrenttime)( HPLAYER handle, struct dvrtime * where );
@@ -489,7 +490,14 @@ public:
 			return 0 ;
 	}
 
-	void * getapi(char * apiname) {
+	const char * getdecodername() {
+		if (m_library < num_library && library[m_library]) {
+			return library[m_library]->modulename;
+		}
+		return "";
+	}
+
+	void * getapi(const char * apiname) {
 		if (m_hplayer != NULL && library[m_library]) {
 			return library[m_library]->getapi(apiname);
 		}
@@ -497,7 +505,7 @@ public:
 			return NULL;
 	}
 
-	int support_api(char * apiname) {
+	int support_api(const char * apiname) {
 		return getapi(apiname) != NULL;
 	}
 
@@ -525,15 +533,15 @@ public:
 			return 0 ;
 	}
 
-	char * getservername()
+	const char * getservername()
 	{
 		if( m_hplayer )
 			return m_playerinfo.servername ;
 		else
-			return "" ;
+			return (char*)"" ;
 	}
 
-	char * getserverinfo()
+	const char * getserverinfo()
 	{
 		if( m_hplayer ) {
 			if( m_playerinfo.serverinfo[0] ) {
@@ -550,8 +558,8 @@ public:
 	int open( int index, int opentype );		// call finddevice first
 	int openremote(char * netname, int opentype ) ;
 	int openharddrive( char * path ) ;
-	int openfile( char * dvrfilename ) ;
-	int opendvr( char * dvrname);				// open dvr by name (for playback)
+	int openfile( const char * dvrfilename ) ;
+	int opendvr( const char * dvrname);				// open dvr by name (for playback)
 
 	int close();
 	int initsmartserver();
@@ -575,8 +583,7 @@ public:
 	int oneframeforward();
 	int getdecframes();
 	int backward(int speed );
-	int capture(int channel, char * capturefilename );
-	int capturewindow(HWND hwnd, char * capturefilename );
+	int capture(int channel, HWND hscreen, char * capturefilename );
 	int seek(struct dvrtime * where );
 	int getcurrenttime(struct dvrtime * where );
     int getdaylist(int * daylist, int sizeoflist );		
@@ -625,6 +632,10 @@ public:
 	// rotate support interfaces
 	int setrotation(int channel, int degree);
 	int supportrotate();
+
+	// sub view API (Harrison)
+	int supportattachview();
+	int attachview(int channel, HWND hwnd, int view);
 
     // get rec state (PWII)
     int getrecstate();

@@ -1,10 +1,10 @@
 // PWManager.cpp : Defines the entry point for the application.
 //
 
-#include <Windows.h>
+#include <windows.h>
 
-#include "..\common\cwin.h"
-#include "..\common\cstr.h"
+#include "cwin.h"
+#include "cstr.h"
 #include "PWManager.h"
 #include "ManagerDlg.h"
 

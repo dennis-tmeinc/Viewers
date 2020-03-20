@@ -2,9 +2,10 @@
 //
 
 #include "stdafx.h"
-#include <CommDlg.h>
+#include <commdlg.h>
 #include "dvrclient.h"
-#include "../common/util.h"
+#include "util.h"
+
 #include "Capture4.h"
 
 #define TVS_SNAPSHOT2

@@ -2,7 +2,7 @@
 #ifndef ___CLASS_STRING___
 #define ___CLASS_STRING___
 
-#include <Windows.h>
+#include <windows.h>
 
 #include <stdlib.h>
 #include <malloc.h>
@@ -17,25 +17,20 @@ protected:
 	WCHAR * pwcs;
 
 	// memory allocations
-	inline static void * _alloc(int size) {
-		//return malloc(size);
-		return HeapAlloc(GetProcessHeap(), 0, size);
+	static void * _alloc(int size) {
+		return malloc(size);
 	}
 
-	inline static void * _realloc(void * p, int size) {
-		// return realloc(p, size);
-		if (p == NULL) return HeapAlloc(GetProcessHeap(), 0, size);
-		else return HeapReAlloc(GetProcessHeap(), 0, p, size);
+	static void * _realloc(void * p, int size) {
+		return realloc(p, size);
 	}
 
-	inline static void _free(void *p) {
-		//free(p);
-		HeapFree(GetProcessHeap(), 0, p);
+	static void _free(void *p) {
+		free(p);
 	}
 
-	inline static int _msize(void *p) {
-		//return (int)::_msize(p);
-		return HeapSize(GetProcessHeap(), 0, p);
+	static int _msize(void *p) {
+		return (int)::_msize(p);
 	}
 
 	char * allocstr(int size) {
@@ -188,12 +183,22 @@ public:
 		return pwcs;
 	}
 
-	int compare(char * str) {
-		return lstrcmpA((char *)*this, str);
+	static int compare(const char * s1, const char *s2)
+	{
+		return lstrcmpA(s1, s2);
+	}
+	
+	static int compare(const WCHAR * s1, const WCHAR *s2)
+	{
+		return lstrcmpW(s1, s2);
 	}
 
-	int compare(WCHAR * wcs) {
-		return lstrcmpW((WCHAR *)*this, wcs);
+	int compare(const char * str) {
+		return compare(str, *this);
+	}
+
+	int compare(const WCHAR * wcs) {
+		return compare(wcs, *this);
 	}
 
 	int compare(string & s) {
@@ -208,11 +213,11 @@ public:
 		}
 	}
 
-	int operator > (char * str) {
+	int operator > (const char * str) {
 		return compare(str) > 0;
 	}
 
-	int operator > (WCHAR * wcs) {
+	int operator > (const WCHAR * wcs) {
 		return compare(wcs) > 0;
 	}
 
@@ -220,11 +225,11 @@ public:
 		return compare(str) > 0;
 	}
 
-	int operator < (char * str) {
+	int operator < (const char * str) {
 		return compare(str) < 0;
 	}
 
-	int operator < (WCHAR * wcs) {
+	int operator < (const WCHAR * wcs) {
 		return compare(wcs) < 0;
 	}
 
@@ -232,11 +237,11 @@ public:
 		return compare(str) < 0;
 	}
 
-	int operator == (char * str) {
+	int operator == (const char * str) {
 		return compare(str) == 0;
 	}
 
-	int operator == (WCHAR * wcs) {
+	int operator == (const WCHAR * wcs) {
 		return compare(wcs) == 0;
 	}
 
@@ -259,21 +264,22 @@ public:
 	}
 
 	inline TCHAR * tcssize(int size) {
-#ifdef  UNICODE 
+#ifdef  UNICODE
+		// unicode
 		return wcssize(size);
 #else
 		return strsize(size);
 #endif
 	}
 
-	string & operator += (char * str) {
+	string & operator += (const char * str) {
 		if (str != NULL) {
 			lstrcatA(strsize(lstrlenA(*this) + lstrlenA(str) + 2), str);
 		}
 		return (*this);
 	}
 
-	string & operator += (WCHAR * wcs) {
+	string & operator += (const WCHAR * wcs) {
 		if (wcs != NULL) {
 			lstrcatW(wcssize(lstrlenW(*this) + lstrlenW(wcs) + 2), wcs);
 		}
@@ -306,34 +312,27 @@ public:
 		return (*this);
 	}
 
-	string & trim() {
+	string & trimhead() {
 		char * t = (char *)(*this);
-		int l = lstrlenA(t);
-
-		// trim tail
-		while (l > 0) {
-			if (t[l - 1] > ' ' || t[l - 1] < 0) {
-				break;
-			}
-			l--;
-		}
-		if(t[l])
-			t[l] = 0;
-
 		// trim head
 		while (*t <= ' ' && *t > 0) {
 			t++;
 		}
 
-		if( t!=pstr)
+		if (t != pstr)
 			set(t);
 		return (*this);
+	}
+
+	string & trim() {
+		trimtail();
+		return trimhead();
 	}
 
 	string & printf(const char * format, ...) {
 		va_list va;
 		va_start(va, format);
-		vsnprintf(strsize(2040), 2040, format, va);
+		vsnprintf(strsize(2048), 2040, format, va);
 		va_end(va);
 		return *this;
 	}

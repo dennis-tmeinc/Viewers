@@ -1,9 +1,9 @@
 ﻿/*
   Copyright (c) 2008 Toronto MicroElectronics Inc
- 
+
   --  CWin.h  --
 
-   A simple windows wrapper 
+   A simple windows wrapper
 
    By Dennis Chen, 2008
 
@@ -17,23 +17,11 @@
 #pragma comment(lib, "Comctl32.lib")
 
 #pragma warning(disable : 4996)
+
 #include <sdkddkver.h>
 
-// my default win versions
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0601
-#endif
-
-#ifndef WINVER
-#define WINVER _WIN32_WINNT
-#endif
-
-#ifndef _WIN32_IE
-#define _WIN32_IE 0x0A00
-#endif
-
 #include <windows.h>
-#include <Commctrl.h>
+#include <commctrl.h>
 #include <tchar.h>
 
 #define USE_GDIPLUS
@@ -58,14 +46,14 @@ using namespace Gdiplus;
 #define MOUSE_POSY(l) GET_Y_LPARAM(l)
 #else
 #define MOUSE_POSX(p) ((int)(short)(p))
-#define MOUSE_POSY(p) ((int)(short)((p) >> 16))
+#define MOUSE_POSY(p) ((int)(short)(((DWORD)p) >> 16))
 #endif
 
 // window subclassing
 class Window
 {
 
-  private:
+private:
 	class _app
 	{
 
@@ -73,14 +61,18 @@ class Window
 		ULONG_PTR gdiplusToken;
 #endif
 
-	  public:
+	public:
 		_app()
 		{
+			// set Hi DPI awareness ?
+			//SetProcessDPIAware();
+
 			// Add integer atom for winprop (may not be necessary)
 			GlobalAddAtom(_T("#1001"));
 
 #ifdef USE_GDIPLUS
 			GdiplusStartupInput gdiplusStartupInput;
+
 			GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 #endif
 
@@ -88,12 +80,13 @@ class Window
 			INITCOMMONCONTROLSEX iccex;
 			iccex.dwSize = sizeof(iccex);
 			iccex.dwICC = ICC_WIN95_CLASSES |
-						  ICC_DATE_CLASSES |
-						  ICC_STANDARD_CLASSES;
+				ICC_DATE_CLASSES |
+				ICC_STANDARD_CLASSES;
 			InitCommonControlsEx(&iccex);
 #else
 			InitCommonControls();
 #endif
+			OleInitialize(NULL);
 		}
 		~_app()
 		{
@@ -105,8 +98,8 @@ class Window
 
 	static LRESULT CALLBACK sWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		Window *pwin = getWindow(hwnd);
-		if (pwin != NULL)
+		Window* pwin = getWindow(hwnd);
+		if (pwin != NULL) 
 		{
 			LRESULT res = pwin->WndProc(uMsg, wParam, lParam);
 			if (uMsg == WM_LAST_MSG) // The last message sent to a window
@@ -121,11 +114,11 @@ class Window
 		}
 	}
 
-  public:
+public:
 	// public static help functions
 
 	// get Window from handle
-	inline static Window *getWindow(HWND hWnd)
+	static Window *getWindow(HWND hWnd)
 	{
 		Window *sWin;
 		sWin = (Window *)GetProp(hWnd, CWIN_PROP);
@@ -137,13 +130,13 @@ class Window
 	}
 
 	// Get application instance
-	static inline HINSTANCE AppInst()
+	static HINSTANCE AppInst()
 	{
 		return GetModuleHandle(NULL);
 	}
 
 	// Get Module Instance contain current resource ( Used for resources in DLL )
-	static inline HINSTANCE ResInst()
+	static HINSTANCE ResInst()
 	{
 		HMODULE hMod;
 		GetModuleHandleEx(
@@ -154,15 +147,15 @@ class Window
 	}
 
 	// Register/retrieve standard window class
-	static inline LPCTSTR WinClass(HBRUSH bgcolor = NULL, UINT style = (CS_VREDRAW | CS_HREDRAW | CS_DBLCLKS))
+	static LPCTSTR WinClass(HBRUSH bgcolor = NULL, UINT style = (CS_VREDRAW | CS_HREDRAW | CS_DBLCLKS))
 	{
-		ATOM hClass;
+		LPCTSTR hClass;
 		TCHAR wclassname[40];
 		WNDCLASSEX wcex;
 		wsprintf(wclassname, TEXT("S%xB%x"), (UINT)style, (UINT)bgcolor);
 		ZeroMemory(&wcex, sizeof(wcex));
 		wcex.cbSize = sizeof(WNDCLASSEX);
-		hClass = (ATOM)GetClassInfoEx(AppInst(), wclassname, &wcex);
+		hClass = (LPCTSTR)GetClassInfoEx(AppInst(), wclassname, &wcex);
 		if (hClass == NULL)
 		{
 			wcex.cbSize = sizeof(WNDCLASSEX);
@@ -179,12 +172,12 @@ class Window
 			// wcex.hbrBackground = (HBRUSH)(COLOR_BACKGROUND+1) ;
 			wcex.hbrBackground = (HBRUSH)bgcolor;
 			wcex.lpszClassName = wclassname;
-			hClass = RegisterClassEx(&wcex);
+			hClass = (LPCTSTR)(DWORD)RegisterClassEx(&wcex);
 		}
-		return (LPCTSTR)hClass;
+		return hClass;
 	}
 
-  protected:
+protected:
 	HWND m_hWnd; // window handle
 	WNDPROC m_savedWndProc;
 
@@ -205,11 +198,11 @@ class Window
 		return DefWndProc(uMsg, wParam, lParam);
 	}
 
-	// called after window been attached (can be serve as OnCreate)
-	virtual void OnAttach(){};
+	// called after window been attached (to do some init after the window created)
+	virtual void OnAttach() {};
 
-	// called after window been dettached, may do some final cleaning here or even delete the object it self
-	// virtual void OnDetach() {} ;
+	// called after window been dettached, may do some final cleaning here. 
+	virtual void OnDetach() {} ;
 
 	// run message loop
 	virtual BOOL PreProcessMessage(MSG *pmsg)
@@ -217,19 +210,24 @@ class Window
 		return FALSE;
 	}
 
-  public:
-	Window() : m_hWnd(NULL), m_savedWndProc(NULL)
+public:
+	Window()
+		: m_hWnd(NULL), m_savedWndProc(NULL)
 	{
 		static _app app;
 	}
 
 	virtual ~Window()
 	{
-		// if a window is attached, destroy the window.
-		if (m_hWnd)
+		// if a window is still attached, destroy the window.
+		if (m_hWnd && IsWindow(m_hWnd))
 		{
-			// Don't wait till this point to destory window, sub class already released and can't receive any messages (include onDetach() )
-			::DestroyWindow(m_hWnd);
+			// Don't wait till this point to destory window, sub class already released and can't receive any messages.
+			// All subclass methods are not available now, include OnDetach(). 
+			// So do DestroyWindow() before delete the object, except don't want to prcess WM_DESTROY.
+			HWND h = m_hWnd;
+			detach();
+			::DestroyWindow(h);		// kill the window.
 		}
 	}
 
@@ -267,19 +265,13 @@ class Window
 				m_savedWndProc = NULL;
 			}
 			RemoveProp(m_hWnd, CWIN_PROP);
+			OnDetach();
 			m_hWnd = NULL;
-			// OnDetach();
 		}
 	}
 
 	// return true if this is a dialog
 	virtual int isDialog()
-	{
-		return FALSE;
-	}
-
-	// dialog box procedures
-	virtual int DlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		return FALSE;
 	}
@@ -299,7 +291,7 @@ class Window
 					if (msg.message == WM_NULL &&
 						msg.hwnd == m_hWnd &&
 						msg.lParam == (LPARAM)0 &&
-						!IsWindowVisible(m_hWnd))
+						!IsWindowVisible(m_hWnd))			// ::EndDialg also meet this condition
 					{
 						break;
 					}
@@ -317,13 +309,13 @@ class Window
 
 class Dialog : public Window
 {
-  private:
+private:
 	static INT_PTR CALLBACK sDialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		Dialog *dlg = (Dialog *)getWindow(hwndDlg);
 		if (dlg == NULL)
 		{
-			if (uMsg == WM_INITDIALOG && lParam != NULL)
+			if (uMsg == WM_INITDIALOG && lParam != (LPARAM)NULL)
 			{
 				dlg = (Dialog *)lParam;
 				dlg->attach(hwndDlg);
@@ -336,14 +328,14 @@ class Dialog : public Window
 		return dlg->DlgProc(uMsg, wParam, lParam);
 	}
 
-  protected:
+protected:
 	virtual void OnAttach()
 	{
 		Window::OnAttach();
 		HWND hparent = GetParent(m_hWnd);
 		if (hparent != NULL)
 		{
-			// try pin the window to the centor of its parent
+			// try pin the window to the center of its parent
 			RECT myRect, parentRect;
 			GetWindowRect(m_hWnd, &myRect);
 			GetWindowRect(hparent, &parentRect);
@@ -399,21 +391,19 @@ class Dialog : public Window
 
 		case WM_COMMAND:
 			return OnCommand(LOWORD(wParam), HIWORD(wParam));
+
+		case WM_LAST_MSG:
+			detach();
+			break;
 		}
 		return FALSE;
 	}
 
-  public:
+public:
 	// return true if this is a dialog
 	virtual int isDialog()
 	{
 		return TRUE;
-	}
-
-	// Create (modeless) dialog
-	HWND CreateDlg(int IdDialog, HWND hWndParent = NULL)
-	{
-		return CreateDialogParam(ResInst(), MAKEINTRESOURCE(IdDialog), hWndParent, Dialog::sDialogProc, (LPARAM)this);
 	}
 
 	int DoModal()
@@ -448,16 +438,22 @@ class Dialog : public Window
 
 		return dlgret;
 	}
+	
+	// Create (modeless) dialog
+	HWND CreateDlg(int IdDialog, HWND hWndParent = NULL)
+	{
+		return CreateDialogParam(ResInst(), MAKEINTRESOURCE(IdDialog), hWndParent, Dialog::sDialogProc, (LPARAM)this);
+	}
 
 	// Modal Dialog
-	int DoModal_1(int IdDialog, HWND hWndParent = NULL)
+	int DoModal(int IdDialog, HWND hWndParent = NULL)
 	{
 		CreateDlg(IdDialog, hWndParent);
 		return DoModal();
 	}
 
-	// Direct api Modal dialog
-	int DoModal(int IdDialog, HWND hWndParent = NULL)
+	// Direct Api Modal dialog
+	int DoModalBox(int IdDialog, HWND hWndParent = NULL)
 	{
 		return (int)DialogBoxParam(ResInst(), MAKEINTRESOURCE(IdDialog), hWndParent, Dialog::sDialogProc, (LPARAM)this);
 	}
@@ -488,7 +484,7 @@ class SimpleMainWin : public Window
 	HACCEL hAccelTable;
 #endif
 
-  protected:
+protected:
 	virtual LRESULT OnPaint()
 	{
 		PAINTSTRUCT ps;
@@ -496,7 +492,7 @@ class SimpleMainWin : public Window
 		hdc = BeginPaint(m_hWnd, &ps);
 #ifdef USE_GDIPLUS
 		Gdiplus::Graphics *g = new Graphics(hdc);
-		Gdiplus::Font font(FontFamily::GenericSansSerif(), 24, FontStyleRegular, UnitPixel);
+		Gdiplus::Font font(FontFamily::GenericSansSerif(), 12, FontStyleRegular, UnitPoint);
 		Gdiplus::PointF pointF(30.0f, 10.0f);
 		Gdiplus::SolidBrush solidBrush(Color(255, 0, 0, 255));
 		g->DrawString(TEXT("Hello world!"), -1, &font, pointF, &solidBrush);
@@ -517,11 +513,11 @@ class SimpleMainWin : public Window
 #ifdef IDD_ABOUTBOX
 		case IDM_ABOUT:
 			// Open about dialog
-			{
-				Dialog dlg;
-				dlg.DoModal(IDD_ABOUTBOX, m_hWnd);
-			}
-			break;
+		{
+			Dialog dlg;
+			dlg.DoModal(IDD_ABOUTBOX, m_hWnd);
+		}
+		break;
 #endif // IDD_ABOUTBOX
 #endif // IDM_ABOUT
 #ifdef IDM_EXIT
@@ -567,7 +563,7 @@ class SimpleMainWin : public Window
 	}
 #endif
 
-  public:
+public:
 	SimpleMainWin()
 	{
 		HWND hwnd;
@@ -608,7 +604,7 @@ class SimpleMainWin : public Window
 };
 
 // a hello world demo WinMain
-inline int simpleWinMain()
+int simpleWinMain()
 {
 	SimpleMainWin mainWin;
 	return mainWin.run();

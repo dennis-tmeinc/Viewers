@@ -29,5 +29,5 @@
 // for special version, do not allow save clip
 // #define NOSAVECLIP
 
-// add json support for dpl file 
-#define JSON_SUPPORT
+// add drive by report support
+#define SUPPORT_DRIVEBY

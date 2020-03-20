@@ -39,10 +39,6 @@ public:
 
 	WebWindow();
 
-	~WebWindow() {
-		if (m_hWnd) DestroyWindow(m_hWnd);
-	}
-
 	void show() {
 		if(IsIconic(m_hWnd))
 			ShowWindow(m_hWnd, SW_RESTORE);

@@ -31,7 +31,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_MAINFRAME           ICON                    "res\\dvrclient.ico"
+IDR_MAINFRAME           ICON                    "res/dvrclient.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -40,8 +40,8 @@ IDR_MAINFRAME           ICON                    "res\\dvrclient.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,18,727
- PRODUCTVERSION 1,1,18,727
+ FILEVERSION 1,1,19,1218
+ PRODUCTVERSION 1,1,19,1218
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x21L
@@ -57,12 +57,12 @@ BEGIN
         BLOCK "000904b0"
         BEGIN
             VALUE "CompanyName", "Toronto MicroElectronics Inc."
-            VALUE "FileVersion", "1.1.18.727"
+            VALUE "FileVersion", "1.1.19.1218"
             VALUE "InternalName", "TVSVIEWER"
             VALUE "LegalCopyright", "Copyright (C) 2010,2011"
             VALUE "OriginalFilename", "TVSVIEWER.EXE"
             VALUE "ProductName", "TVSVIEWER"
-            VALUE "ProductVersion", "1.1.18.727"
+            VALUE "ProductVersion", "1.1.19.1218"
         END
     END
     BLOCK "VarFileInfo"
@@ -164,7 +164,7 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-    "#include ""res\\tvsviewer.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""res/tvsviewer.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
     "\0"
 END
 
@@ -654,7 +654,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "res\tvsviewer.rc2"  // non-Microsoft Visual C++ edited resources
+#include "res/tvsviewer.rc2"  // non-Microsoft Visual C++ edited resources
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

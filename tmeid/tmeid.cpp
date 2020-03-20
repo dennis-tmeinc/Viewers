@@ -9,13 +9,13 @@
 #include <io.h>
 #include <direct.h>
 #include <fcntl.h>
-#include <sys\stat.h>
+#include <sys/stat.h>
 
-#include <Userenv.h>
-#include <Shlwapi.h>
+#include <userenv.h>
+#include <shlwapi.h>
 
 #include "resource.h"
-#include "../common/cstr.h"
+#include "cstr.h"
 
 #include "md5.h"
 
@@ -28,23 +28,19 @@ extern DWORD getHardDriveID ();
 #ifdef __cplusplus
 extern "C" {
 #endif
-DLL_API int SetStorage(char * storage);
-DLL_API int DeleteID( char * id );
-DLL_API int ListID( int index, char * id );
-DLL_API int AddID( char * id, DWORD * key, int idtype );
-DLL_API int CheckID( char * id, DWORD * key);
-DLL_API void PasswordToKey(char * password, DWORD *key);
-DLL_API void Encode(char * v, int size );
-DLL_API void Decode(char * v, int size);
+	DLL_API int SetStorage(const char * storage);
+	DLL_API int DeleteID(const char * id);
+	DLL_API int ListID(int index, char * id);
+	DLL_API int AddID(const char * id, DWORD * key, int idtype);
+	DLL_API int CheckID(const char * id, DWORD * key);
+	DLL_API void PasswordToKey(const char * password, DWORD *key);
+	DLL_API void Encode(char * v, int size);
+	DLL_API void Decode(char * v, int size);
 #ifdef __cplusplus
 }
 #endif
 
-#ifdef __cplusplus
-extern "C"
-#endif
-
-HANDLE keyhandle = INVALID_HANDLE_VALUE;
+static HANDLE keyhandle = INVALID_HANDLE_VALUE;
 
 static DWORD enkey[4] = {
 	0x5d3c743a,
@@ -141,7 +137,7 @@ static void x_close()
 
 static int x_open(char * filename)
 {
-	string fn = filename;
+	string fn(filename);
 	x_close();
 	keyhandle = CreateFile( 
 		fn,
@@ -158,7 +154,7 @@ static int x_open(char * filename)
 		if (fs < 1000) {
 			unsigned int randbuf[1024];
 			for (int x = 0; x < 1024; x++) {
-				rand_s(&randbuf[x]);
+				randbuf[x] = rand();
 			}
 			x_write(randbuf, 0, sizeof(randbuf));
 		}
@@ -263,7 +259,7 @@ static void setIdSize( int s )
 	saveIdt(0, &it);
 }
 
-DLL_API int SetStorage(char * storage)
+DLL_API int SetStorage(const char * storage)
 {
 	string idfilename;
 	DWORD plen = 500;
@@ -344,7 +340,7 @@ DLL_API int ListID(int index, char * id)
 }
 
 // Return idtype, -1 for error
-DLL_API int CheckID( char * id, DWORD * key)
+DLL_API int CheckID( const char * id, DWORD * key)
 {
     if( *id==0 ) return -1 ;
     if(
@@ -386,7 +382,7 @@ DLL_API int CheckID( char * id, DWORD * key)
     return -1 ;
 }
 
-DLL_API int DeleteID(char * id)
+DLL_API int DeleteID(const char * id)
 {
 	if (strcmp(id, "*") == 0) {
 		setIdSize(1);
@@ -415,7 +411,7 @@ DLL_API int DeleteID(char * id)
 	return res;
 }
 
-DLL_API int AddID(char * id, DWORD * key, int idtype)
+DLL_API int AddID(const char * id, DWORD * key, int idtype)
 {
 	id_type idt;
 	int i;
@@ -440,7 +436,7 @@ DLL_API int AddID(char * id, DWORD * key, int idtype)
 	return i;
 }
 
-DLL_API void PasswordToKey(char * password, DWORD *key)
+DLL_API void PasswordToKey(const char * password, DWORD *key)
 {
 	MD5_CTX ctx;
 	MD5_Init(&ctx);

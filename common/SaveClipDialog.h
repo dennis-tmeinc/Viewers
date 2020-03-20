@@ -48,7 +48,8 @@ protected:
         ofn.hInstance = AppInst();
         ofn.hwndOwner = m_hWnd ;
         ofn.lpstrDefExt=_T("DVR");
-        ofn.Flags=OFN_OVERWRITEPROMPT ;
+		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
         if( GetSaveFileName(&ofn) ) {
 			m_clipfilename = ofn.lpstrFile ;
 			SetDlgItemText( m_hWnd, IDC_EDIT_CLIPFILENAME, m_clipfilename );

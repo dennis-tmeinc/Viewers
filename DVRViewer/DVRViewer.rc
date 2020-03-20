@@ -30,8 +30,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,2,18,1023
- PRODUCTVERSION 3,2,18,1023
+ FILEVERSION 3,2,19,1113
+ PRODUCTVERSION 3,2,19,1113
  FILEFLAGSMASK 0x1fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -47,12 +47,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Toronto MicroElectronics Inc."
-            VALUE "FileVersion", "3.2.18.1023"
+            VALUE "FileVersion", "3.2.19.1113"
             VALUE "InternalName", "DVRViewer"
             VALUE "LegalCopyright", "Copyright (C) 2015"
             VALUE "OriginalFilename", "DVRViewer.exe"
             VALUE "ProductName", "DVRViewer"
-            VALUE "ProductVersion", "3.2.18.1023"
+            VALUE "ProductVersion", "3.2.19.1113"
         END
     END
     BLOCK "VarFileInfo"
@@ -69,7 +69,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_MAINFRAME           ICON                    "res\\dvrclient.ico"
+IDR_MAINFRAME           ICON                    "res/dvrclient.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -252,7 +252,7 @@ BEGIN
     LTEXT           "File version:",IDC_STATIC,48,71,40,8
 END
 
-IDD_DVRCLIENT_DIALOG DIALOGEX 0, 0, 437, 383
+IDD_DVRCLIENT_DIALOG DIALOGEX 0, 0, 949, 835
 STYLE DS_SETFONT | DS_NOIDLEMSG | DS_3DLOOK | DS_FIXEDSYS | DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_VISIBLE | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_NOPARENTNOTIFY | WS_EX_CONTROLPARENT | WS_EX_APPWINDOW
 CAPTION "DVRViewer"
@@ -267,16 +267,16 @@ BEGIN
     PUSHBUTTON      "Playfile",IDC_PLAYFILE,188,57,50,14,NOT WS_VISIBLE
     PUSHBUTTON      "Exit",IDC_EXIT,239,28,50,14,NOT WS_VISIBLE
     PUSHBUTTON      "SmartServer",IDC_SMARTSERVER,239,43,50,14,NOT WS_VISIBLE
-    GROUPBOX        "Quick Tools",IDC_STATIC_QUICKTOOLS,7,93,133,34,0,WS_EX_TRANSPARENT
+    GROUPBOX        "Quick Tools",IDC_STATIC_QUICKTOOLS,7,93,131,34,0,WS_EX_TRANSPARENT
     PUSHBUTTON      "Quick Clip",IDC_QUICKCAP,15,106,50,14
     PUSHBUTTON      "Snap Shot",IDC_CAPTURE,79,106,50,14
-    GROUPBOX        "Custom Clip",IDC_STATIC_GROUP_CUSTOMCLIP,7,129,133,72,0,WS_EX_TRANSPARENT
+    GROUPBOX        "Custom Clip",IDC_STATIC_GROUP_CUSTOMCLIP,7,129,131,72,0,WS_EX_TRANSPARENT
     PUSHBUTTON      "Start Time",IDC_TIMEBEGIN,13,143,50,14
     CONTROL         "",IDC_TIME_SELBEGIN,"SysDateTimePick32",DTS_RIGHTALIGN | DTS_UPDOWN | WS_TABSTOP | 0x8,69,142,67,15
     PUSHBUTTON      "End Time",IDC_TIMEEND,13,162,50,14
     CONTROL         "",IDC_TIME_SELEND,"SysDateTimePick32",DTS_RIGHTALIGN | DTS_UPDOWN | WS_TABSTOP | 0x8,69,163,67,15
     PUSHBUTTON      "Make Clip",IDC_SAVEFILE,13,182,50,14
-    CONTROL         "",IDC_MONTHCALENDAR,"SysMonthCal32",MCS_DAYSTATE | MCS_NOTODAY | MCS_NOTODAYCIRCLE | WS_TABSTOP,0,209,151,91
+    CONTROL         "",IDC_MONTHCALENDAR,"SysMonthCal32",MCS_DAYSTATE | MCS_NOTODAY | MCS_NOTODAYCIRCLE | WS_TABSTOP,0,204,144,102
     GROUPBOX        "PTZ",IDC_GROUP_PTZ,163,129,110,175,NOT WS_VISIBLE,WS_EX_TRANSPARENT
     CONTROL         "Tele",IDC_PTZ_TELE,"Button",BS_OWNERDRAW | NOT WS_VISIBLE | WS_TABSTOP,183,215,25,17
     CONTROL         "Wide",IDC_PTZ_WIDE,"Button",BS_OWNERDRAW | NOT WS_VISIBLE | WS_TABSTOP,227,215,25,17
@@ -290,7 +290,7 @@ BEGIN
     PUSHBUTTON      "Set",IDC_PTZ_SET,173,286,25,14,NOT WS_VISIBLE
     PUSHBUTTON      "Clear",IDC_PTZ_CLEAR,207,286,25,14,NOT WS_VISIBLE
     PUSHBUTTON      "Goto",IDC_PTZ_GOTO,239,286,25,14,NOT WS_VISIBLE
-    CTEXT           "January 1, 2008, 11:25:41 AM",IDC_STATIC_PLAYTIME,0,302,147,10
+    CTEXT           "January 1, 2008, 11:25:41 AM",IDC_STATIC_PLAYTIME,0,312,138,10
     PUSHBUTTON      "<<",IDC_PREV,29,325,18,14
     COMBOBOX        IDC_COMBO_TIMERANGE,49,325,73,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      ">>",IDC_NEXT,125,325,18,14,BS_BITMAP
@@ -302,9 +302,9 @@ BEGIN
     CONTROL         ">>",IDC_FORWARD,"Button",BS_OWNERDRAW | WS_TABSTOP,163,360,23,23
     CONTROL         "+",IDC_FAST,"Button",BS_OWNERDRAW | WS_TABSTOP,187,360,23,23
     CONTROL         "|>",IDC_STEP,"Button",BS_OWNERDRAW | WS_TABSTOP,211,360,23,23
-    CONTROL         "Mix Audio",IDC_MIXAUDIO,"Button",BS_OWNERDRAW | WS_TABSTOP,279,349,27,24
-    CONTROL         "",IDC_PIC_SPEAKER_VOLUME,"Static",SS_BLACKFRAME | NOT WS_VISIBLE,312,355,17,14
-    CONTROL         "minimap",IDC_MAP,"Button",BS_OWNERDRAW | WS_TABSTOP,251,361,27,22
+    CONTROL         "Mix Audio",IDC_MIXAUDIO,"Button",BS_OWNERDRAW | WS_TABSTOP,278,358,27,24
+    CONTROL         "",IDC_PIC_SPEAKER_VOLUME,"Static",SS_BLACKFRAME | NOT WS_VISIBLE,312,359,17,14
+    CONTROL         "minimap",IDC_MAP,"Button",BS_OWNERDRAW | WS_TABSTOP,242,360,27,22
 END
 
 IDD_DIALOG_LOGIN DIALOGEX 0, 0, 203, 140
@@ -533,7 +533,7 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-    "#include ""res\\dvrviewer.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""res/dvrviewer.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
     "\r\n"
     "\0"
 END
@@ -714,13 +714,70 @@ END
 /////////////////////////////////////////////////////////////////////////////
 
 
+/////////////////////////////////////////////////////////////////////////////
+// English (Canada) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENC)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_CAN
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG_DRIVEBYREPORT DIALOGEX 0, 0, 346, 363
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Generate Drive By Report"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Generate Report",IDOK,120,342,72,14
+    PUSHBUTTON      "Close",IDCANCEL,240,342,50,14
+    CONTROL         "",IDC_STATIC_PICTURE0,"Static",SS_OWNERDRAW | SS_NOTIFY,6,6,165,105
+    CONTROL         "",IDC_STATIC_PICTURE1,"Static",SS_OWNERDRAW | SS_NOTIFY,174,6,165,105
+    CONTROL         "",IDC_STATIC_PICTURE3,"Static",SS_OWNERDRAW | SS_NOTIFY,174,114,165,105
+    CONTROL         "",IDC_STATIC_PICTURE2,"Static",SS_OWNERDRAW | SS_NOTIFY,6,114,165,105
+    LTEXT           "Vehicle ID: ",IDC_STATIC,67,234,38,8
+    EDITTEXT        IDC_EDIT_BUSID,120,234,216,14,ES_AUTOHSCROLL
+    LTEXT           "Plate of Violator: ",IDC_STATIC,49,252,56,8
+    LTEXT           "Address: ",IDC_STATIC,74,270,31,8
+    EDITTEXT        IDC_EDIT_PLATE,120,252,216,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_ADDRESS,120,270,216,14,ES_AUTOHSCROLL
+    LTEXT           "Note: ",IDC_STATIC,84,288,21,8
+    EDITTEXT        IDC_EDIT_NOTE,120,288,216,30,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
+    CONTROL         "Open generated pdf file",IDC_CHECK_OPENPDF,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,324,90,10
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG_DRIVEBYREPORT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 339
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 356
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (Canada) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
 
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "res\dvrviewer.rc2"  // non-Microsoft Visual C++ edited resources
+#include "res/dvrviewer.rc2"  // non-Microsoft Visual C++ edited resources
 
 
 /////////////////////////////////////////////////////////////////////////////

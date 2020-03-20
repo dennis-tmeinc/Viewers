@@ -3,13 +3,20 @@
 #
 #
 
-WINFLAGS = -I. -I../common -D_UNICODE -DUNICODE -D__MINGW__ -DWINVER=0x0501 -D_WIN32_IE=0x600
-CFLAGS = $(WINFLAGS) -s -O2 -mwindows
-LFLAGS = -lgdiplus -lcomctl32 -lversion -lole32 -luuid -lnetapi32 -lwinmm -lws2_32 -loleaut32 -static-libstdc++ -static-libgcc
+#PREFIX=x86_64-w64-mingw32-
+PREFIX=i686-w64-mingw32-
+CC=$(PREFIX)gcc
+WINDRES=$(PREFIX)windres
+STRIP=$(PREFIX)strip
+
+WINFLAGS = -I. -I../common -D_UNICODE -DUNICODE -D__MINGW__  -D_WIN32_WINNT=0x0601
+CFLAGS = $(WINFLAGS) -Os -mwindows
+LFLAGS = -lmsvcrt -lgdiplus -lcomctl32 -lversion -lole32 -lurlmon -luuid -lnetapi32 -lwinmm -lws2_32 -loleaut32 -lsupc++
 
 TARGET = PWViewer
 
 SOURCES = $(TARGET).cpp \
+        stdafx.cpp\
         ../common/CallTmeDlg.cpp \
         ../common/Screen.cpp \
         ../common/cliplist.cpp \
@@ -17,17 +24,21 @@ SOURCES = $(TARGET).cpp \
         ../common/SelectDvr.cpp\
         ../common/crypt.cpp\
         ../common/util.cpp\
-        ../common/User.cpp\
         ../common/decoder.cpp\
         ../common/volumebar.cpp\
         ../common/ChangePassword.cpp\
-        ../common/UserNew.cpp\
+        ../common/SimpleBrowser.cpp\
+        ../common/WebWin.cpp\
+        ../common/json.cpp\
+        ../common/SubViewScreen.cpp\
         ../common/dvrclientDlg.cpp\
+        ../common/VideoPassword.cpp\
         ../common/CopyProgress.cpp\
         ../common/UserPass.cpp\
         ../common/md5.cpp\
         ../common/RemoteIpDlg.cpp\
         ../common/sliderbar.cpp \
+        ../common/bsliderbar.cpp \
 		../common/tvsid.cpp
 
 
@@ -43,6 +54,8 @@ HEADERS = $(TARGET).h \
             ../common/map.h\
             ../common/Capture4.h\
             ../common/User.h\
+            ../common/json.h\
+            ../common/SubViewScreen.h\
             ../common/cliplist.h\
             ../common/UserNew.h\
             ../common/crypt.h\
@@ -60,16 +73,17 @@ HEADERS = $(TARGET).h \
 
 OBJS = $(patsubst %.cpp, %.o, $(SOURCES))
 		
-$(TARGET).exe : $(OBJS) $(TARGET)_res.o
-	g++ $(CFLAGS) -o $@ $^ ../Debug/tmeid.dll /c/windows/system32/urlmon.dll $(LFLAGS)
-	cp $@ ../Debug/
-	cp $@ ../Release/
+$(TARGET).exe : $(OBJS) $(TARGET)_res.o ../tmeid/tmeid.dll
+	$(CC) $(CFLAGS) -o $@ $^  $(LFLAGS)
 
 $(TARGET)_res.o : $(TARGET).rc res/$(TARGET).rc2
-	windres $(WINFLAGS) $(TARGET).rc $@
-
+	$(PREFIX)windres $(WINFLAGS) $(TARGET).rc $@
+	
 %.o : %.cpp $(HEADERS)
-	g++ $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
+
+strip : $(TARGET).exe
+	$(STRIP) $^
 	
 clean :
 	rm -f $(TARGET).exe $(OBJS) *.o

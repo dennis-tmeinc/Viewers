@@ -1,20 +1,22 @@
 #ifndef __CDIR_H__
 #define __CDIR_H__
 
-#include "../common/cstr.h"
+#include <windows.h>
+
+#include "cstr.h"
 
 // a dir finding class
 
 class dirfind
 {
-  protected:
+  private:
 	HANDLE m_dirhandle;
 	WIN32_FIND_DATA m_finddata;
 	string m_dir;
 	string m_filename;
 	string m_filepath;
 
-	int _findnext()
+	int _find()
 	{
 		if (m_dirhandle == NULL)
 		{
@@ -94,7 +96,7 @@ class dirfind
 
 	int find()
 	{
-		while (_findnext())
+		while (_find())
 		{
 			if (isfile() || m_finddata.cFileName[0] != '.')
 			{
@@ -107,7 +109,7 @@ class dirfind
 	// find files only
 	int findfile()
 	{
-		while (_findnext())
+		while (_find())
 		{
 			if (isfile())
 			{
@@ -120,7 +122,7 @@ class dirfind
 	// find dirs only
 	int finddir()
 	{
-		while (_findnext())
+		while (_find())
 		{
 			if (isdir() && m_finddata.cFileName[0] != '.')
 			{

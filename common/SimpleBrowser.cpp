@@ -7,7 +7,8 @@
 //
 #include "stdafx.h"
 
-#include <Windows.h>
+#include <stddef.h>
+#include <windows.h>
 #include <exdisp.h>		// Defines of stuff like IWebBrowser2. This is an include file with Visual C 6 and above
 #include <mshtml.h>		// Defines of stuff like IHTMLDocument2. This is an include file with Visual C 6 and above
 #include <mshtmhst.h>	// Defines of stuff like IDocHostUIHandler. This is an include file with Visual C 6 and above
@@ -688,17 +689,17 @@ public:
 
 	virtual HRESULT STDMETHODCALLTYPE GetIDsOfNames(
 		/* [in] */ __RPC__in REFIID riid,
-		/* [size_is][in] */ __RPC__in_ecount_full(cNames) LPOLESTR *rgszNames,
-		/* [range][in] */ __RPC__in_range(0, 16384) UINT cNames,
+		/* [size_is][in] */ LPOLESTR *rgszNames,
+		/* [range][in] */  UINT cNames,
 		/* [in] */ LCID lcid,
-		/* [size_is][out] */ __RPC__out_ecount_full(cNames) DISPID *rgDispId) 
+		/* [size_is][out] */ DISPID *rgDispId) 
 	{
 		HWND hwnd;
 		hwnd = *(HWND *)((char *)this - offset_external() + offset_window());
 
 		UINT i;
 		for (i = 0; i < cNames; i++) {
-			rgDispId[i] = SendMessage(hwnd, WM_APP + 100, (WPARAM)rgszNames[i], NULL );
+			rgDispId[i] = SendMessage(hwnd, WM_APP + 100, (WPARAM)rgszNames[i], (LPARAM)NULL );
 		}
 		return S_OK;
 	}
@@ -893,34 +894,36 @@ public:
 	}
 };
 
+#define OffsetOf(s, m) ((size_t)&(((s*)0)->m))
+
 size_t offset_inplace()
 {
-	return offsetof(IOleClientSiteEx, inplace);
+	return OffsetOf(IOleClientSiteEx, inplace);
 }
 
 size_t offset_frame()
 {
-	return offsetof(IOleClientSiteEx, frame);
+	return OffsetOf(IOleClientSiteEx, frame);
 }
 
 size_t offset_ui()
 {
-	return offsetof(IOleClientSiteEx, ui);
+	return OffsetOf(IOleClientSiteEx, ui);
 }
 
 size_t offset_external()
 {
-	return offsetof(IOleClientSiteEx, ext);
+	return OffsetOf(IOleClientSiteEx, ext);
 }
 
 size_t offset_browser()
 {
-	return offsetof(IOleClientSiteEx, browserObject);
+	return OffsetOf(IOleClientSiteEx, browserObject);
 }
 
 size_t offset_window()
 {
-	return offsetof(IOleClientSiteEx, window);
+	return OffsetOf(IOleClientSiteEx, window);
 }
 
 
