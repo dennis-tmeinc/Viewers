@@ -171,11 +171,11 @@ public:
 	void setScreenMode(int newmode);
 	int  getScreenMode();
 	void ScreenDblClk( Screen * player);
-	void Seek();
+	void Seek(int pos=-1);
     void SetPlayTime(dvrtime *dvrt);
 	DWORD GetDaystateMonthcalendar(int year, int month);
 	void UpdateMonthcalendar();
-	void updateTimebar();
+	void updateTimebar(int delay = 100);
 
 	int DVR_PTZMsg( DWORD msg, DWORD param );
 	void SeekTime( struct dvrtime * dtime );	// seek to specified time

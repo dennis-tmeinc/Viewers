@@ -7,10 +7,6 @@
 // dvrclientDlg.cpp : implementation file
 //
 
-
-
-#define WINVER 0x0605
-
 #include "stdafx.h"
 
 #include <shellapi.h>
@@ -39,6 +35,7 @@
 #include "UsbPassword.h"
 #include "screen.h"
 #include "SubViewScreen.h"
+#include "json.h"
 
 #ifdef APP_PWVIEWER_VOLUMECHECK
 #include "VolumePass.h"
@@ -76,21 +73,21 @@ DvrclientDlg::DvrclientDlg()
 	int i;
 
 #ifdef USER_DEFAULT_SCREEN_DPI 
-	m_dpi = USER_DEFAULT_SCREEN_DPI;
+    m_dpi = USER_DEFAULT_SCREEN_DPI;
 #else
-	m_dpi = 96;
+    m_dpi = 96;
 #endif
 
-	m_minxsize=0 ;
-	m_minysize=0 ;
+	m_minxsize=640 ;
+	m_minysize=400 ;
 	m_screennum=4 ;			// default 2x2 screen
 	m_ptz_savedcursor=NULL ;
 	for(i=0;i<MAXSCREEN;i++)
 		m_screen[i]=NULL ;
-
+		
 	for (i = 0; i < SUBVIEW_SCREEN_NUMBER; i++)
 		m_saveScreen[i] = NULL;
-
+	
 	m_focus=0;
 	m_clientmode=CLIENTMODE_CLOSE;
 
@@ -137,8 +134,8 @@ DvrclientDlg::DvrclientDlg()
     m_playerrect.bottom = 500 ;
     m_playerrect.right = 700 ;
 
-	// misc app init
-	app_init();
+    // misc app init
+    app_init();
 
 	// initialize decoder library
 	decoder::initlibrary();
@@ -148,13 +145,13 @@ DvrclientDlg::DvrclientDlg()
 
 DvrclientDlg::~DvrclientDlg()
 {
-	int i;
-	for (i = 0; i < MAXSCREEN; i++) {
-		if (m_screen[i]) delete m_screen[i];
-	}
-	for (i = 0; i < SUBVIEW_SCREEN_NUMBER; i++) {
-		if (m_saveScreen[i]) delete m_saveScreen[i];
-	}
+    int i;
+    for (i = 0; i < MAXSCREEN; i++) {
+        if (m_screen[i]) delete m_screen[i];
+    }
+    for (i = 0; i < SUBVIEW_SCREEN_NUMBER; i++) {
+        if (m_saveScreen[i]) delete m_saveScreen[i];
+    }
 
 #ifdef NEWPAINTING
         if( m_bkbmp ) {
@@ -541,8 +538,8 @@ BOOL DvrclientDlg::OnInitDialog()
 {
 	int i ;
 
-	// to support Drag&Drop
-	RegisterDragDrop(m_hWnd, &dropTarget);
+    // to support Drag&Drop
+    RegisterDragDrop(m_hWnd, &dropTarget);
 
 	// set main window ICON
 	HICON hIcon = LoadIcon(ResInst(), MAKEINTRESOURCE(IDR_MAINFRAME));
@@ -562,11 +559,11 @@ BOOL DvrclientDlg::OnInitDialog()
 
 	SetProp(m_hWnd, _T(APPNAME), (HANDLE)0x55aa);
 
-	// dpi awareness
-	HDC hdc = GetDC(m_hWnd);
-	Graphics graphics(hdc);
-	m_dpi = graphics.GetDpiY();
-	ReleaseDC(m_hWnd, hdc);
+    // support dpi awareness
+    HDC hdc = GetDC(m_hWnd);
+    Graphics graphics(hdc);
+    m_dpi = graphics.GetDpiY();
+    ReleaseDC(m_hWnd, hdc);
 
 	m_hmutx = CreateMutex(NULL, 0, TMPSTR( "mutex:%s", APPNAME) );
 	if (m_hmutx == NULL) {
@@ -588,18 +585,18 @@ BOOL DvrclientDlg::OnInitDialog()
 		ShowWindow(hbtuser,SW_HIDE);
 
 	struct tvskey_data * tvskey ;
-	for (i = 0; i < 3; i++) {
-		tvskey = tvs_readtvskey();
-		if (tvskey == NULL) {
-			if (MessageBox(m_hWnd, _T("PLEASE INSERT USB KEY!"), NULL, MB_ICONERROR | MB_RETRYCANCEL) == IDCANCEL) {
-				EndDialog();
-				return FALSE;
-			}
-		}
-		else {
-			break;
-		}
-	}
+    for (i = 0; i < 3; i++) {
+        tvskey = tvs_readtvskey();
+        if (tvskey == NULL) {
+            if (MessageBox(m_hWnd, _T("PLEASE INSERT USB KEY!"), NULL, MB_ICONERROR | MB_RETRYCANCEL) == IDCANCEL) {
+                EndDialog();
+                return FALSE;
+            }
+        }
+        else {
+            break;
+        }
+    }
 	if( tvskey ) {
 		
 #ifdef APP_PWVIEWER_VOLUMECHECK
@@ -769,9 +766,8 @@ BOOL DvrclientDlg::OnInitDialog()
 	g_playstat=PLAY_STOP;
 
 	// setup a UPDATE seconds timer
-	m_update_time=1000 ;
-	updateTimebar();
-	
+    updateTimebar(2000);
+
 #if defined( APP_PW_TABLET ) || defined( APP_TVS ) 
 	// replace SLIDER with bsliderbar
 	DestroyWindow( GetDlgItem(m_hWnd, IDC_SLIDER) ) ;
@@ -801,7 +797,7 @@ BOOL DvrclientDlg::OnInitDialog()
 	// initialize tooltip
 	int id ;
 	TOOLINFO toolInfo ;
-    HWND hwndTT = CreateWindowEx(0,
+    HWND hwndTT = CreateWindowEx(NULL,
         TOOLTIPS_CLASS, NULL,
         WS_POPUP | TTS_BALLOON,		
         CW_USEDEFAULT, CW_USEDEFAULT,
@@ -888,8 +884,8 @@ BOOL DvrclientDlg::OnInitDialog()
 #ifdef APP_PW_TABLET
 		SetScreenFormat("Single");
 #else
-		g_screenmode = SCREENMODE_AUTO;
-		m_maxdecscreen = 4 ;		// assume 4 screen
+        g_screenmode = SCREENMODE_AUTO;
+        m_maxdecscreen = 4 ;		// assume 4 screen
 		SetScreenFormat();
 #endif
 	}
@@ -931,9 +927,9 @@ BOOL DvrclientDlg::OnInitDialog()
 		szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
 		if (szArglist) {
 			if (nArgs > 1) {
-				string *fn = new string(szArglist[1]);
-				PostMessage( m_hWnd, WM_OPENDVRFILE, NULL, (LPARAM)fn);
-				nPlay = 1;
+                string *fn = new string(szArglist[1]);
+                PostMessage( m_hWnd, WM_OPENDVRFILE, NULL, (LPARAM)fn);
+                nPlay = 1;
 			}
 			LocalFree(szArglist);
 		}
@@ -981,9 +977,9 @@ void DvrclientDlg::SetLayout()
     // setup ptz circle size (just size).
 	img = loadbitmap(_T("PTZ_DE"));
 	m_ptzcampass_rect.top = 0 ;
-	m_ptzcampass_rect.bottom = img->GetHeight() * m_dpi / 96 ;
-	m_ptzcampass_rect.left = 0 ;
-	m_ptzcampass_rect.right = img->GetWidth() * m_dpi / 96;
+    m_ptzcampass_rect.bottom = img->GetHeight() * m_dpi / 96 ;
+    m_ptzcampass_rect.left = 0 ;
+    m_ptzcampass_rect.right = img->GetWidth() * m_dpi / 96;
 	delete img ;
 
 	// initialize panel controls, only to setup width
@@ -1018,8 +1014,8 @@ void DvrclientDlg::SetLayout()
 			if( btbar_ctls[i].imgname ) {
 				img = loadbitmap( btbar_ctls[i].imgname );
 				if( img ) {
-					w = img->GetWidth() * m_dpi / 96;
-					h = img->GetHeight() * m_dpi / 96;
+                    w = img->GetWidth() * m_dpi / 96;
+                    h = img->GetHeight() * m_dpi / 96;
 					delete img ;
 				}
 			}
@@ -1043,21 +1039,18 @@ void DvrclientDlg::SetLayout()
 	m_bottombar.bottom=120 ;
 #endif
 
-	if (m_minxsize <= 100) {
-		::GetWindowRect(m_hWnd, &rect);
-		m_minxsize = rect.right - rect.left;
+	::GetWindowRect(m_hWnd, &rect);
+	m_minxsize = rect.right - rect.left;
 
-		if (m_minxsize < (x + w + 180)) {
-			m_minxsize = x + w + 180;
-		}
-
-		m_minysize = rect.bottom - rect.top - 30;
-		::MoveWindow( m_hWnd,
-			rect.left, rect.top,
-			m_minxsize+120, m_minysize, TRUE );
+	if (m_minxsize < (x + w + 180))
+	{
+		m_minxsize = x + w + 180;
 	}
 
-	InvalidateRect(m_hWnd, NULL, True);
+	m_minysize = rect.bottom - rect.top - 30;
+	::MoveWindow( m_hWnd,
+        rect.left, rect.top,
+        m_minxsize+120, m_minysize, TRUE );
 
 #ifdef APP_PWPLAYER
     m_companylinkrect.left = 0 ;
@@ -1179,10 +1172,10 @@ void DvrclientDlg::CloseClipList()
 
 LRESULT DvrclientDlg::OnDpiChanged(int dpi) 
 {
-	m_dpi = dpi;
-	SetLayout();
-	OnSize(0, 0, 0);
-	return FALSE;
+    m_dpi = dpi;
+    SetLayout();
+    OnSize(0, 0, 0);
+    return FALSE;
 }
 
 #ifdef  NEWPAINTING
@@ -1193,18 +1186,11 @@ void DvrclientDlg::OnSize(UINT nType, int cx, int cy)
 	RECT rect ;
     int  sliderheight ;
 
-#if(WINVER >= 0x0605)
-	m_dpi = GetDpiForWindow(m_hWnd);
-#endif
-
     if( cx==0 ) {
         ::GetClientRect( m_hWnd, &rect);
         cx = rect.right ;
         cy = rect.bottom ;
     }
-	
-	RECT r;
-	GetWindowRect(GetDlgItem(m_hWnd, IDC_BUTTON_PLAY), &r);
 
     // setup control layout,
     if( control_align == 1 ) {       // 0:left, 1:right
@@ -1295,8 +1281,8 @@ void DvrclientDlg::OnSize(UINT nType, int cx, int cy)
     m_bottombar.top = m_bottombar.bottom - h ;
 
     if(m_zoom) {
-        m_bottombar.top += h+500 ;
-        m_bottombar.bottom += h+500 ;
+        m_bottombar.top += h+100 ;
+        m_bottombar.bottom += h+100 ;
     }
 
     // Move Control Panel
@@ -1432,20 +1418,27 @@ void DvrclientDlg::OnSize(UINT nType, int cx, int cy)
     h = m_bottombar.bottom-m_bottombar.top ;
     if( m_bkbmp ) {
         delete m_bkbmp ;
+        m_bkbmp = NULL ;
     }
-    Bitmap * timg = loadbitmap( _T("PLAY_BK") );
-    if( timg ) {
+    if( m_bkbmp==NULL ) {
+        Bitmap * timg = loadbitmap( _T("PLAY_BK") );
+        if( timg ) {
+            m_bkbmp = new Gdiplus::Bitmap(w,h);
 #ifdef APP_PW_TABLET
-		m_bkbmp = new Gdiplus::Bitmap(w + 200, h);
-		Graphics* gbk = new Graphics(m_bkbmp);
-		gbk->SetInterpolationMode(InterpolationModeNearestNeighbor);
-		gbk->DrawImage( timg, Rect(0,0,w+200,h), 0,0, timg->GetWidth(), timg->GetHeight(), UnitPixel);
+            Graphics * gbk = new Graphics(m_bkbmp);
+			gbk->SetInterpolationMode(InterpolationModeNearestNeighbor);
+			gbk->DrawImage( timg, Rect(0,0,w+200,h), 0,0, timg->GetWidth(), timg->GetHeight(), UnitPixel);
 //			gbk->DrawImage( timg, 0, 0, w, h );
-		delete gbk;
-		delete timg;
+            delete gbk ;
 #else
-		m_bkbmp = timg;
+            Graphics * gbk = new Graphics(m_bkbmp);
+            Brush * bkbrush = new TextureBrush( timg );
+            gbk->FillRectangle(bkbrush, 0, 0, w, h);
+            delete bkbrush ;
+            delete gbk ;
 #endif
+            delete timg ;
+        }
     }
 #endif      // SPARTAN_APP
 
@@ -2052,117 +2045,116 @@ CImage img ;
     }
 }
 
-
 void DvrclientDlg::setScreenMode(int newmode)
 {
-	if (g_screenmode == newmode) 
-		return;
+    if (g_screenmode == newmode) 
+        return;
 
-	// restore ex-screen mode
-	if (g_screenmode == SCREENMODE_SINGLE) {
-		m_focus = g_savefocus;
-		if (m_focus != 0) {
-			Screen * swap = m_screen[0];
-			m_screen[0] = m_screen[m_focus];
-			m_screen[m_focus] = swap;
-		}
-		g_screenmode = g_savedmode;
-	}
-	else if (g_screenmode == SCREENMODE_SUBVIEW) {
-		for (int i = 1; i < SUBVIEW_SCREEN_NUMBER; i++) {
-			if (m_screen[i]) {
-				delete m_screen[i];
-			}
-			m_screen[i] = m_saveScreen[i];
-			m_saveScreen[i] = NULL;
-		}
-		// swap back focused screen
-		m_focus = g_savefocus;
-		if (m_focus != 0) {
-			Screen * swap = m_screen[0];
-			m_screen[0] = m_screen[m_focus];
-			m_screen[m_focus] = swap;
-		}
-		g_screenmode = g_savedmode;
-	}
+    // restore ex-screen mode
+    if (g_screenmode == SCREENMODE_SINGLE) {
+        m_focus = g_savefocus;
+        if (m_focus != 0) {
+            Screen * swap = m_screen[0];
+            m_screen[0] = m_screen[m_focus];
+            m_screen[m_focus] = swap;
+        }
+        g_screenmode = g_savedmode;
+    }
+    else if (g_screenmode == SCREENMODE_SUBVIEW) {
+        for (int i = 1; i < SUBVIEW_SCREEN_NUMBER; i++) {
+            if (m_screen[i]) {
+                delete m_screen[i];
+            }
+            m_screen[i] = m_saveScreen[i];
+            m_saveScreen[i] = NULL;
+        }
+        // swap back focused screen
+        m_focus = g_savefocus;
+        if (m_focus != 0) {
+            Screen * swap = m_screen[0];
+            m_screen[0] = m_screen[m_focus];
+            m_screen[m_focus] = swap;
+        }
+        g_screenmode = g_savedmode;
+    }
 
-	if (newmode == SCREENMODE_SINGLE) {
-		if (m_focus != 0) {
-			Screen * swap = m_screen[0];
-			m_screen[0] = m_screen[m_focus];
-			m_screen[m_focus] = swap;
-		}
+    if (newmode == SCREENMODE_SINGLE) {
+        if (m_focus != 0) {
+            Screen * swap = m_screen[0];
+            m_screen[0] = m_screen[m_focus];
+            m_screen[m_focus] = swap;
+        }
 
-		g_savefocus = m_focus;
-		g_savedmode = g_screenmode;
-		g_screenmode = SCREENMODE_SINGLE;
-		m_focus = 0;
-	}
-	else if (newmode == SCREENMODE_SUBVIEW) {
-		Screen * player = m_screen[m_focus];
-		decoder * dec = player->m_decoder;
-		int channel = player->m_channel;
+        g_savefocus = m_focus;
+        g_savedmode = g_screenmode;
+        g_screenmode = SCREENMODE_SINGLE;
+        m_focus = 0;
+    }
+    else if (newmode == SCREENMODE_SUBVIEW) {
+        Screen * player = m_screen[m_focus];
+        decoder * dec = player->m_decoder;
+        int channel = player->m_channel;
 
-		// swap focused screen to screen[0]
-		if (m_focus != 0) {
-			Screen * swap = m_screen[0];
-			m_screen[0] = m_screen[m_focus];
-			m_screen[m_focus] = swap;
-		}
+        // swap focused screen to screen[0]
+        if (m_focus != 0) {
+            Screen * swap = m_screen[0];
+            m_screen[0] = m_screen[m_focus];
+            m_screen[m_focus] = swap;
+        }
 
-		for (int i = 1; i < SUBVIEW_SCREEN_NUMBER; i++) {
-			if (m_saveScreen[i]) {
-				delete m_saveScreen[i];
-				m_saveScreen[i] = NULL;
-			}
-			if (m_screen[i]) {
-				m_screen[i]->Hide();
-				m_saveScreen[i] = m_screen[i];
-				m_screen[i] = NULL;
-			}
-		}
+        for (int i = 1; i < SUBVIEW_SCREEN_NUMBER; i++) {
+            if (m_saveScreen[i]) {
+                delete m_saveScreen[i];
+                m_saveScreen[i] = NULL;
+            }
+            if (m_screen[i]) {
+                m_screen[i]->Hide();
+                m_saveScreen[i] = m_screen[i];
+                m_screen[i] = NULL;
+            }
+        }
 
-		m_screen[1] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_FRONT);
-		m_screen[1]->AttachDecoder(dec, channel);
-		m_screen[2] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_MIDDLE);
-		m_screen[2]->AttachDecoder(dec, channel);
-		m_screen[3] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_BACK);
-		m_screen[3]->AttachDecoder(dec, channel);
+        m_screen[1] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_FRONT);
+        m_screen[1]->AttachDecoder(dec, channel);
+        m_screen[2] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_MIDDLE);
+        m_screen[2]->AttachDecoder(dec, channel);
+        m_screen[3] = new SubViewScreen(this->m_hWnd, (int)PLYVIEW_BACK);
+        m_screen[3]->AttachDecoder(dec, channel);
 
-		g_savedmode = g_screenmode;
-		g_savefocus = m_focus;
-		g_screenmode = SCREENMODE_SUBVIEW;
-		m_focus = 0;
-	}
-	else if (newmode != SCREENMODE_RESTORE) {
-		g_screenmode = newmode;
-	}
+        g_savedmode = g_screenmode;
+        g_savefocus = m_focus;
+        g_screenmode = SCREENMODE_SUBVIEW;
+        m_focus = 0;
+    }
+    else if (newmode != SCREENMODE_RESTORE) {
+        g_screenmode = newmode;
+    }
 
-	SetScreenFormat();
+    SetScreenFormat();
 }
 
 int DvrclientDlg::getScreenMode() {
-	return g_screenmode;
+    return g_screenmode;
 }
 
 void DvrclientDlg::ScreenDblClk( Screen * player)
 {
-	FocusPlayer( player ) ;
+    FocusPlayer( player ) ;
 
-	if (g_screenmode == SCREENMODE_SINGLE) {
-		setScreenMode(g_savedmode);
-	}
-	else if (g_screenmode == SCREENMODE_SUBVIEW) {
-		setScreenMode(g_savedmode);
-	}
-	else {
-		if (player->m_decoder && g_subviewsupport) {		// support subview
-			setScreenMode(SCREENMODE_SUBVIEW);
-		}
-		else {
-			setScreenMode(SCREENMODE_SINGLE);
-		}
-	}
+    if (g_screenmode == SCREENMODE_SINGLE) {
+        setScreenMode(g_savedmode);
+    }
+    else if (g_screenmode == SCREENMODE_SUBVIEW) {
+        setScreenMode(g_savedmode);
+    }
+    else {
+        if (player->m_decoder && g_subviewsupport) {		// support subview
+            setScreenMode(SCREENMODE_SUBVIEW);
+        }
+        else {
+            setScreenMode(SCREENMODE_SINGLE);
+        }
+    }
 }
 
 void DvrclientDlg::FocusPlayer( Screen * screen)
@@ -2173,7 +2165,7 @@ void DvrclientDlg::FocusPlayer( Screen * screen)
 
 	struct channel_info chinfo ;
 
-	updateTimebar();
+    updateTimebar();
 
     m_slider.SetScreen(screen);
 	
@@ -2198,7 +2190,7 @@ void DvrclientDlg::FocusPlayer( Screen * screen)
 		CtrlSet();		// reset Ctrl set, may show/hide PTZ control
 //		SetVolume();
 	}
-	UpdateMonthcalendar();      // to update day info (bold days that has video)
+    UpdateMonthcalendar();      // to update day info (bold days that has video)
 	screen->setaudio(1);
 }
 
@@ -2248,44 +2240,44 @@ void DvrclientDlg::SetScreenFormat()
 	RECT winrect ;
 	int align = 0 ;
 
-	if( g_screenmode>=0 && g_screenmode<screenmode_table_num ) {
-		m_screenmode = g_screenmode ;
+    if( g_screenmode>=0 && g_screenmode<screenmode_table_num ) {
+        m_screenmode = g_screenmode ;
 //		m_savescreenmode = m_screenmode ;
 //		g_screenmode = screenmode ;
-	}
-	else if( g_screenmode == SCREENMODE_AUTO ) {
-		// g_screenmode = screenmode_table_num ;	// automatic
-		// automatic select screen mode
-		m_screenmode = 0 ;
+    }
+    else if( g_screenmode == SCREENMODE_AUTO ) {
+        // g_screenmode = screenmode_table_num ;	// automatic
+        // automatic select screen mode
+        m_screenmode = 0 ;
 
-		// search exact screen mode first
-		for(i=0;i<screenmode_table_num;i++) {
-			if( screenmode_table[i].numscreen >= m_maxdecscreen ) {
-				m_screenmode=i;
-				break;
-			}
-		}
-	}
-	else if (g_screenmode == SCREENMODE_SINGLE) {
-		m_screenmode = 0;      // single screen
-		m_focus = 0;
-	}
-	else if (g_screenmode == SCREENMODE_SUBVIEW) {
-		m_screenmode = 3;
-		m_focus = 0;
-	}
-	else {
-		m_screenmode = 0;      // default: single screen
-		m_focus = 0;
-	}
+        // search exact screen mode first
+        for(i=0;i<screenmode_table_num;i++) {
+            if( screenmode_table[i].numscreen >= m_maxdecscreen ) {
+                m_screenmode=i;
+                break;
+            }
+        }
+    }
+    else if (g_screenmode == SCREENMODE_SINGLE) {
+        m_screenmode = 0;      // single screen
+        m_focus = 0;
+    }
+    else if (g_screenmode == SCREENMODE_SUBVIEW) {
+        m_screenmode = 3;
+        m_focus = 0;
+    }
+    else {
+        m_screenmode = 0;      // default: single screen
+        m_focus = 0;
+    }
 
-	if( m_screenmode>=0 && m_screenmode<screenmode_table_num ){
-		align =  screenmode_table[m_screenmode].align ;	// 0: center, 1: left, 2: right, 3: top, 4, bottom
-	}
-	else {
-		m_screenmode = 0;
-		align = 0;
-	}
+    if( m_screenmode>=0 && m_screenmode<screenmode_table_num ){
+        align =  screenmode_table[m_screenmode].align ;	// 0: center, 1: left, 2: right, 3: top, 4, bottom
+    }
+    else {
+        m_screenmode = 0;
+        align = 0;
+    }
 
 	m_screct=m_playerrect ;
 	InflateRect(&m_screct, -1, -1 );
@@ -2370,11 +2362,11 @@ void DvrclientDlg::SetScreenFormat()
 	height = m_screct.bottom-m_screct.top ;			// new full screen width
    
 	// Hide not displaed screens
-	for (i = m_screennum; i < MAXSCREEN; i++) {
-		if (m_screen[i] != NULL) {
-			m_screen[i]->Hide();
-		}
-	}
+    for (i = m_screennum; i < MAXSCREEN; i++) {
+        if (m_screen[i] != NULL) {
+            m_screen[i]->Hide();
+        }
+    }
 
     // Move visible screens
     for( i=0; i<m_screennum; i++ ) {
@@ -2387,24 +2379,23 @@ void DvrclientDlg::SetScreenFormat()
         winrect=m_screenrect[i] ;
         InflateRect(&winrect, -1, -1 );
         
-		if( m_screen[i]==NULL ) {
-			m_screen[i]=new Screen(m_hWnd) ;
-		}
+        if( m_screen[i]==NULL ) {
+            m_screen[i]=new Screen(m_hWnd) ;
+        }
 
-		// move ;
-		m_screen[i]->Move( winrect.left, winrect.top, winrect.right-winrect.left, winrect.bottom-winrect.top );
+        // move ;
+        m_screen[i]->Move( winrect.left, winrect.top, winrect.right-winrect.left, winrect.bottom-winrect.top );
     }
-	
-	// Show visible screens
-	for (i = 0; i < m_screennum; i++) {
-		m_screen[i]->Show();
-	}
+    
+    // Show visible screens
+    for (i = 0; i < m_screennum; i++) {
+        m_screen[i]->Show();
+    }
 
 	if(  m_screen[m_focus] )
 		FocusPlayer( m_screen[m_focus] ) ;
 
-	InvalidateRect(m_hWnd, &m_playerrect, 1);
-	UpdateWindow(m_hWnd);
+    InvalidateRect(m_hWnd, &m_playerrect, 1);
 
 }
 
@@ -2424,10 +2415,10 @@ void DvrclientDlg::SetScreenFormat(char * screenname)
 // 
 void DvrclientDlg::OpenDVRFile(string * filename)
 {
-	if (filename != NULL) {
-		Playfile(*filename);
-		delete filename;
-	}
+    if (filename != NULL) {
+        Playfile(*filename);
+        delete filename;
+    }
 }
 
 double ptz_points[] = { 
@@ -2505,17 +2496,18 @@ DWORD DvrclientDlg::GetDaystateMonthcalendar(int year, int month)
         return 0;
     }
     else {
-		if (m_screen[m_focus]) {
-			return m_screen[m_focus]->getmoninfo(&daytime);
-		}
+        if (m_screen[m_focus]) {
+            return m_screen[m_focus]->getmoninfo(&daytime);
+        }
     }
-	return 0 ;
+    return 0 ;
 }
 
-void DvrclientDlg::updateTimebar() 
+void DvrclientDlg::updateTimebar( int delay )
 {
-	m_tbarupdate = 1;
-	SetTimer(m_hWnd, TIMER_UPDATE, 100, NULL);
+    m_tbarupdate = 1;
+	m_update_time = delay;
+    SetTimer(m_hWnd, TIMER_UPDATE, m_update_time, NULL);
 }
 
 void DvrclientDlg::UpdateMonthcalendar()
@@ -2537,39 +2529,39 @@ void DvrclientDlg::UpdateMonthcalendar()
 	}
     ::SendDlgItemMessage(m_hWnd, IDC_MONTHCALENDAR, MCM_SETDAYSTATE, nCount, (LPARAM)pDayState);
 	delete [] pDayState;
-	::SetTimer(m_hWnd, TIMER_UPDATE, 100, NULL );		// start update timer
+	updateTimebar();
 }
 
 void DvrclientDlg::OnMcnGetdaystateMonthcalendar(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	LPNMDAYSTATE pDayState = (LPNMDAYSTATE)pNMHDR;
-	int i;
-	int year, month ;
+    LPNMDAYSTATE pDayState = (LPNMDAYSTATE)pNMHDR;
+    int i;
+    int year, month ;
 
-	year = pDayState->stStart.wYear;
-	month = pDayState->stStart.wMonth;
+    year = pDayState->stStart.wYear;
+    month = pDayState->stStart.wMonth;
 
-	for(i=0; i< pDayState->cDayState ; i++)
-	{
-		pDayState->prgDayState[i] = (MONTHDAYSTATE) GetDaystateMonthcalendar(year, month) ;
-		if( ++month>12 ) {
-			month=1 ;
-			year++ ;
-		}
-	}
-	*pResult = 0;
+    for(i=0; i< pDayState->cDayState ; i++)
+    {
+        pDayState->prgDayState[i] = (MONTHDAYSTATE) GetDaystateMonthcalendar(year, month) ;
+        if( ++month>12 ) {
+            month=1 ;
+            year++ ;
+        }
+    }
+    *pResult = 0;
 }
 
 void DvrclientDlg::OnMcnSelchangeMonthcalendar(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	LPNMSELCHANGE pSelChange = (LPNMSELCHANGE)pNMHDR;
+    LPNMSELCHANGE pSelChange = (LPNMSELCHANGE)pNMHDR;
     m_noupdtime=20 ;         // stop update time for a while
-	*pResult = 0;
+    *pResult = 0;
 }
 
 void DvrclientDlg::OnMcnSelectMonthcalendar(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	LPNMSELCHANGE pSelChange = (LPNMSELCHANGE)pNMHDR;
+    LPNMSELCHANGE pSelChange = (LPNMSELCHANGE)pNMHDR;
 
 	SYSTEMTIME caltime ;
 	
@@ -2601,46 +2593,46 @@ void DvrclientDlg::OnNMReleasedcaptureMonthcalendar(NMHDR *pNMHDR, LRESULT *pRes
 
 void DvrclientDlg::ClosePlayer()
 {
-	int i;
+    int i;
 
 #ifdef SUPPORT_DRIVEBY
-	cleanDriveByFiles();
+    cleanDriveByFiles();
 #endif
-	
-	if( m_cliplist!=NULL && m_cliplist->getHWND()!=NULL ) {     // in clip listing mode
+    
+    if( m_cliplist!=NULL && m_cliplist->getHWND()!=NULL ) {     // in clip listing mode
         CloseClipList();
         delete m_cliplist ;
         m_cliplist=NULL ;
     }
 
-	m_focus=0;
+    m_focus=0;
 
-	for (i = 0; i < SUBVIEW_SCREEN_NUMBER; i++) {
-		if (m_saveScreen[i]) {
-			m_saveScreen[i]->DetachDecoder();
-		}
-	}
+    for (i = 0; i < SUBVIEW_SCREEN_NUMBER; i++) {
+        if (m_saveScreen[i]) {
+            m_saveScreen[i]->DetachDecoder();
+        }
+    }
 
-	for (i = 0; i < MAXSCREEN; i++) {
-		if (m_screen[i]) {
-			m_screen[i]->DetachDecoder();
-		}
-	}
-	
-	// restore saved screen from single/subview screen ;
-	int xmode = getScreenMode();
-	if (xmode == SCREENMODE_SINGLE || xmode == SCREENMODE_SUBVIEW) {
-		setScreenMode(g_savedmode);
-	}
+    for (i = 0; i < MAXSCREEN; i++) {
+        if (m_screen[i]) {
+            m_screen[i]->DetachDecoder();
+        }
+    }
+    
+    // restore saved screen from single/subview screen ;
+    int xmode = getScreenMode();
+    if (xmode == SCREENMODE_SINGLE || xmode == SCREENMODE_SUBVIEW) {
+        setScreenMode(g_savedmode);
+    }
 
-	decoder::g_close() ;
+    decoder::g_close() ;
     m_playertime.year = 1970 ;
     m_seektime.year = 1979 ;
-	m_clientmode=CLIENTMODE_CLOSE ;
-	// reset start from last day
-	m_startonlastday = 1;
+    m_clientmode=CLIENTMODE_CLOSE ;
+    // reset start from last day
+    m_startonlastday = 1;
 
-	CtrlSet();
+    CtrlSet();
 #ifdef IDC_EDIT_LOCATION
     if( m_updateLocation ) {
         ::SetDlgItemText(m_hWnd, IDC_EDIT_LOCATION, _T(""));
@@ -2656,10 +2648,10 @@ void DvrclientDlg::ClosePlayer()
         m_mapWindow=NULL ;
     }
 
-	ReleaseMap();
+    ReleaseMap();
 
 #ifdef 	IDC_COMBO_OFFICERID
-	SendMessage( GetDlgItem(m_hWnd, IDC_COMBO_OFFICERID),  CB_RESETCONTENT, 0, 0);
+    SendMessage( GetDlgItem(m_hWnd, IDC_COMBO_OFFICERID),  CB_RESETCONTENT, 0, 0);
 #endif
 }
 
@@ -2768,17 +2760,16 @@ void DvrclientDlg::StartPlayer()
 
 	m_maxdecscreen = j;
 	decoder::g_checkpassword();
-
-    m_focus=0;
+	
+	m_focus=0;
 	SetScreenFormat();
-	g_playstat = PLAY_PLAY ;
+	g_playstat = PLAY_STOP ;
     m_playertime.year = 1970 ;
     m_seektime.year = 1979 ;
 	if( j<=0 ) {
 		ClosePlayer();
 	}
     else {
-
 		// seek to last day with videos, if possible, 
 		if(m_startonlastday == 1 && m_clientmode == CLIENTMODE_PLAYBACK && m_screen[0] != NULL && m_screen[0]->m_decoder != NULL ) {
 			dvrtime dt ;
@@ -2786,6 +2777,7 @@ void DvrclientDlg::StartPlayer()
 			dt.hour = 0 ;
 			dt.min = 0 ;
 			dt.second = 0 ;
+            dt.millisecond = 0;
 			int * daylist = new int [5000] ;		// 5000 days  
 			int dsize = m_screen[0]->m_decoder->getdaylist(daylist, 5000) ;
 			if( dsize >= 0 ) {
@@ -2794,7 +2786,8 @@ void DvrclientDlg::StartPlayer()
 					dt.year = daylist[dsize]/10000 ;
 					dt.month = (daylist[dsize]%10000)/100 ;
 					dt.day = daylist[dsize]%100 ;
-					decoder::g_seek( &dt ) ;
+					//decoder::g_seek( &dt ) ;
+					SeekTime(&dt);
 				}
 			}
 			else {
@@ -2802,10 +2795,12 @@ void DvrclientDlg::StartPlayer()
 				dt.hour = 0 ;
 				dt.min = 0 ;
 				dt.second = 0 ;
+                dt.millisecond = 0;
 				// up to 10 yrs backward search
 				for( int i=0; i<355*10; i++ ) {
 					if( m_screen[0]->getdayinfo( &dt ) ) {
-						decoder::g_seek( &dt ) ;
+						//decoder::g_seek(&dt);
+						SeekTime(&dt);
 						break;
 					}
 					time_add( dt, -(24*3600) ) ;	// backward a day
@@ -2815,12 +2810,12 @@ void DvrclientDlg::StartPlayer()
 		}
 
     	decoder::g_play();
+		// g_playstat = PLAY_PLAY ;
     }
     if( m_screen[0] ) {
         m_focus=1 ;
 		this->FocusPlayer(m_screen[0]);
 	}
-   	::SetTimer(m_hWnd, TIMER_UPDATE, 10, NULL );		// start update timer
 #ifdef IDC_EDIT_LOCATION
     if( m_updateLocation ) {
         ::SetDlgItemText(m_hWnd, IDC_EDIT_LOCATION, _T(""));
@@ -2922,39 +2917,37 @@ void DvrclientDlg::OnBnClickedSmartserver()
     OpenDvr(PLY_SMARTSERVER, CLIENTMODE_PLAYSMARTSERVER);
 }
 
-#include "json.h"
-
 // play DVR file
 int DvrclientDlg::Playfile(const char * filename)
 {
     int res = 0 ;
-	WaitCursor waitcursor ;
-	ClosePlayer();
+    WaitCursor waitcursor ;
+    ClosePlayer();
 
-	const char * ext=strrchr(filename,'.');
-	if (ext != NULL && stricmp(ext, ".dpl") == 0) {		// try open dpl if it is a direct DVR connections
-		json *jdpl = new json;
-		jdpl->loadFile(filename);
-		json * jprotocol = jdpl->getLeaf("server/protocol");
-		if (jprotocol && strcmp(jprotocol->getString(),"dvr")==0) {
-			json * jhost = jdpl->getLeaf("server/host");
-			if(jhost&&jhost->isString()) 
-				res = PlayRemote(jhost->getString(), PLY_PREVIEW);
-		}
-		delete jdpl;
-	}
+    const char * ext=strrchr(filename,'.');
+    if (ext != NULL && stricmp(ext, ".dpl") == 0) {		// try open dpl if it is a direct DVR connections
+        json *jdpl = new json;
+        jdpl->loadFile(filename);
+        json * jprotocol = jdpl->getLeaf("server/protocol");
+        if (jprotocol && strcmp(jprotocol->getString(),"dvr")==0) {
+            json * jhost = jdpl->getLeaf("server/host");
+            if(jhost&&jhost->isString()) 
+                res = PlayRemote(jhost->getString(), PLY_PREVIEW);
+        }
+        delete jdpl;
+    }
 
     if( res==0 && g_decoder[0].openfile(filename) >= 0 ) {
 //		m_clientmode=CLIENTMODE_PLAYFILE;
-		m_startonlastday = 0;				// don't start from last day
-		m_clientmode=CLIENTMODE_PLAYBACK;
+        m_startonlastday = 0;				// don't start from last day
+        m_clientmode=CLIENTMODE_PLAYBACK;
         m_playfile_beginpos = 0 ;
         m_playfile_endpos = 0 ;
-		StartPlayer();
-		res = 1;
-	}
+        StartPlayer();
+        res = 1;
+    }
     if( res == 0 ) {
-		MessageBox(m_hWnd, _T("Can't play this file."), NULL, MB_OK);
+        MessageBox(m_hWnd, _T("Can't play this file."), NULL, MB_OK);
     }
     return res ;
 }
@@ -2984,13 +2977,14 @@ void DvrclientDlg::OnBnClickedPlayfile()
     ofn.lStructSize = sizeof (OPENFILENAME) ;
     ofn.nMaxFile = 512 ;
     ofn.lpstrFile = filename.tcssize(ofn.nMaxFile) ;
-    ofn.lpstrFilter=_T("DVR Files\0*.DVR;*.26*;*.DPL\0All files\0*.*\0\0");
+	ofn.lpstrFilter=_T("DVR Files\0*.DVR;*.26*;*.DPL\0All files\0*.*\0\0");
     ofn.nFilterIndex=1;
     ofn.hInstance = ResInst();
     ofn.hwndOwner = m_hWnd ;
-	if( GetOpenFileName(&ofn) ) {
-		Playfile(filename) ;
-    }
+	if (GetOpenFileName(&ofn))
+	{
+		Playfile(filename);
+	}
 }
 
 void DvrclientDlg::OnBnClickedSetup()
@@ -3254,28 +3248,15 @@ void DvrclientDlg::OnBnClickedMixaudio()
 
 void DvrclientDlg::OnBnClickedSlow()
 {
-	if( g_playstat==PLAY_PAUSE ) {
-//		decoder::g_oneframebackword();
-	}
-	else {
-		if( g_playstat>PLAY_SLOW || g_playstat<PLAY_SLOW_MAX ) {
+	if (g_playstat >= PLAY_SLOW_MAX) {	// is playing ?
+		if( g_playstat>=PLAY_PLAY ) {
 			g_playstat=PLAY_SLOW ;
-			decoder::g_slowforward(1);
 		}
 		else if( g_playstat>PLAY_SLOW_MAX ) {
 			g_playstat--;
-			decoder::g_slowforward(PLAY_SLOW-g_playstat+1);
 		}
+		decoder::g_slowforward(PLAY_PLAY - g_playstat );
 	}
-}
-
-void DvrclientDlg::SeekTime( struct dvrtime * dtime )
-{
-    m_playertime = *dtime ;
-    m_seektime = *dtime ;
-    decoder::g_seek(dtime);
-    m_tbarupdate = 1 ;
-	SetTimer(m_hWnd, TIMER_UPDATE, 1, NULL );
 }
 
 void DvrclientDlg::OnBnClickedForward()
@@ -3298,8 +3279,8 @@ void DvrclientDlg::OnBnClickedBackward()
 
 void DvrclientDlg::OnBnClickedPause()
 {
-	g_playstat=PLAY_PAUSE ;
 	decoder::g_pause();
+	// g_playstat = PLAY_PAUSE;
 	ShowWindow(GetDlgItem(m_hWnd, IDC_PAUSE),SW_HIDE);
 	ShowWindow(GetDlgItem(m_hWnd, IDC_PLAY),SW_SHOW);
 	EnableWindow(GetDlgItem(m_hWnd, IDC_STEP),TRUE);
@@ -3315,8 +3296,8 @@ void DvrclientDlg::OnBnClickedPlay()
         SetScreenFormat();
     }
 
-	g_playstat=PLAY_PLAY ;
 	decoder::g_play();
+	// g_playstat = PLAY_PLAY;
 	ShowWindow(GetDlgItem(m_hWnd, IDC_PLAY),SW_HIDE);
 	ShowWindow(GetDlgItem(m_hWnd, IDC_PAUSE),SW_SHOW);
 	EnableWindow(GetDlgItem(m_hWnd, IDC_STEP),FALSE);
@@ -3324,15 +3305,14 @@ void DvrclientDlg::OnBnClickedPlay()
 
 void DvrclientDlg::OnBnClickedFast()
 {
-	if( g_playstat!=PLAY_PAUSE ) {
-		if( g_playstat<PLAY_FAST || g_playstat>PLAY_FAST_MAX ) {
+	if( g_playstat >= PLAY_SLOW_MAX) {	// is playing ?
+		if( g_playstat<=PLAY_PLAY ) {
 			g_playstat=PLAY_FAST ;
-			decoder::g_fastforward(1);
 		}
 		else if( g_playstat<PLAY_FAST_MAX ) {
 			g_playstat++;
-			decoder::g_fastforward(g_playstat-PLAY_FAST+1);
 		}
+		decoder::g_fastforward(g_playstat - PLAY_PLAY);
 	}
 }
 
@@ -3343,22 +3323,31 @@ void DvrclientDlg::OnBnClickedStep()
 	}
 }
 
-void DvrclientDlg::Seek()
+// post a delayed seek
+void DvrclientDlg::SeekTime(struct dvrtime* dtime)
+{
+	m_playertime = *dtime;
+	m_seektime = *dtime;
+	SetTimer(m_hWnd, TIMER_SEEK, 20, NULL);
+}
+
+void DvrclientDlg::Seek(int pos)
 {
     SYSTEMTIME st ;
 	struct dvrtime stime ;
-	int pos ;
     memset( &stime, 0, sizeof(stime));
     ::SendDlgItemMessage( m_hWnd, IDC_MONTHCALENDAR, MCM_GETCURSEL, 0, (LPARAM)&st );
     stime.year = st.wYear ;
     stime.month = st.wMonth ;
     stime.day = st.wDay ;
-    pos=m_slider.GetPos();
+	if( pos<0 )
+		pos=m_slider.GetPos();
     stime.hour = pos / 3600 ;
     stime.min = (pos%3600)/60 ;
     stime.second = pos%60 ;
     stime.millisecond=0 ;
-    SeekTime( &stime );
+    SeekTime( &stime ) ;
+	updateTimebar(3000);    // delay TIMER_UPDATE
 }
 
 void DvrclientDlg::OnBnClickedPrev()
@@ -3648,8 +3637,7 @@ void DvrclientDlg::OnNMCustomdrawSlider(NMHDR *pNMHDR, LRESULT *pResult)
 			( m_playfile_beginpos != m_slider.GetRangeMin() ||
             m_playfile_endpos != m_slider.GetRangeMax() ) ) 
         {
-            m_tbarupdate = 1 ;
-            ::SetTimer(m_hWnd, TIMER_UPDATE, 10, NULL);
+			updateTimebar();	
         }
 
 // output tic text
@@ -3732,19 +3720,19 @@ BOOL DvrclientDlg::PreProcessMessage(MSG* pMsg)
         }
 		else if( pMsg->wParam == VK_F7 ) {	// change focused camera
             int focus=m_focus+1 ;
-			if( focus>=m_screennum ) {
-				focus=0 ;
-			}
-			if( m_screen[focus] ) {
-				FocusPlayer( m_screen[focus] );
-			}
+            if( focus>=m_screennum ) {
+                focus=0 ;
+            }
+            if( m_screen[focus] ) {
+                FocusPlayer( m_screen[focus] );
+            }
 		}
         else if( pMsg->wParam == VK_F8 ) {	// Rotate screen format
-			int newmode = getScreenMode()+1 ;
-			if(newmode >= screenmode_table_num || screenmode_table[newmode].screenname == NULL ) {
-				newmode =0 ;
-			}
-			setScreenMode(newmode);
+            int newmode = getScreenMode()+1 ;
+            if(newmode >= screenmode_table_num || screenmode_table[newmode].screenname == NULL ) {
+                newmode =0 ;
+            }
+            setScreenMode(newmode);
 		}
         else if( pMsg->wParam == VK_F9 ) {	// full screen (one screen)
             if( m_screen[m_focus] && m_screen[m_focus]->isVisible() ) {
@@ -4298,14 +4286,14 @@ void DvrclientDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 					::GetClientRect(::GetDlgItem(m_hWnd, nIDCtl), &rt);
 					if( lpDrawItemStruct->itemState & ODS_SELECTED ) {
 						img = loadbitmap( ptz_buttons[i].img_sel );
-						g->DrawImage( img, (INT)rt.left, (INT)rt.top, (INT)rt.right, (INT)rt.bottom );
+						g->DrawImage( img, rt.left, rt.top, rt.right, rt.bottom );
 						delete img ;
 						res = DVR_PTZMsg( ptz_buttons[i].msg, 0 );
 						m_ptzbuttonpressed=1;
 					}
 					else {
 						img = loadbitmap( ptz_buttons[i].img );
-						g->DrawImage( img, (INT)rt.left, (INT)rt.top, (INT)rt.right, (INT)rt.bottom );
+						g->DrawImage( img, rt.left, rt.top, rt.right, rt.bottom );
 						delete img ;
 						if( m_ptzbuttonpressed ) {
 							DVR_PTZMsg( 0, 0 );
@@ -4326,7 +4314,7 @@ void DvrclientDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 					::GetClientRect(::GetDlgItem(m_hWnd, nIDCtl), &rt);
 					if( lpDrawItemStruct->itemState & ODS_SELECTED  ) {	// selected
 						img = loadbitmap( play_buttons[i].img_sel );
-						g->DrawImage( img, (INT)rt.left, (INT)rt.top, (INT)rt.right, (INT)rt.bottom );
+						g->DrawImage( img, rt.left, rt.top, rt.right, rt.bottom );
 //						g->DrawImage( img, 0, 0 );
 						delete img ;
 					}
@@ -4352,7 +4340,7 @@ void DvrclientDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 						else {		// normal
 							img = loadbitmap( play_buttons[i].img );
 //							g->DrawImage( img, 0, 0 );
-							g->DrawImage( img, (INT)rt.left, (INT)rt.top, (INT)rt.right, (INT)rt.bottom );
+							g->DrawImage( img, rt.left, rt.top, rt.right, rt.bottom );
 							delete img ;
 						}
 					}
@@ -4530,8 +4518,8 @@ void DvrclientDlg::OnDestroy()
 {
 
 	RevokeDragDrop(m_hWnd);
-	
-    if( m_cliplist ) {
+    
+	if( m_cliplist ) {
         delete m_cliplist ;
         m_cliplist=NULL ;
     }
@@ -4612,8 +4600,7 @@ void DvrclientDlg::SetPlayTime(dvrtime *dvrt)
             {
                 omin = m_slider.m_lowfilepos ;
                 omax = m_slider.m_highfilepos ;
-                m_tbarupdate = 1 ;
-                SetTimer(m_hWnd, TIMER_UPDATE, 10, NULL );
+                updateTimebar();					
             }
         }
         else if( npos<omin || npos>omax || m_tbarupdate ) {
@@ -4658,8 +4645,8 @@ void DvrclientDlg::SetPlayTime(dvrtime *dvrt)
             ::SendDlgItemMessage(m_hWnd, IDC_TIME_SELEND, DTM_SETSYSTEMTIME, GDT_VALID, (LPARAM)&st);
 */
 
-			// update month calendar
-			UpdateMonthcalendar();
+            // update month calendar
+            UpdateMonthcalendar();
         }
         m_slider.SetPos(&m_playertime);
     }
@@ -4682,7 +4669,10 @@ void DvrclientDlg::OnTimer(UINT_PTR nIDEvent)
     dvrtime dvrt ;
     memset(&dvrt,0,sizeof(dvrt));
 	if( nIDEvent==TIMER_UPDATE ) {
-        SetTimer(m_hWnd, TIMER_UPDATE, m_update_time, NULL );
+		if (m_update_time != 1000) {
+			m_update_time = 1000;
+			SetTimer(m_hWnd, TIMER_UPDATE, m_update_time, NULL);
+		}
 		if(m_clientmode==CLIENTMODE_CLOSE) {
 			GetLocalTime(&st);
 			SetPlayTime(time_timedvr(&st, &dvrt));
@@ -4692,7 +4682,7 @@ void DvrclientDlg::OnTimer(UINT_PTR nIDEvent)
 	            SetPlayTime(&dvrt)  ;
 			}
 		}
-		else if( (g_playstat != PLAY_STOP) &&
+		else if( (g_playstat > PLAY_STOP) &&
 			decoder::g_getcurrenttime(&dvrt)>=0 ) 
         {
             SetPlayTime(&dvrt)  ;
@@ -4700,7 +4690,9 @@ void DvrclientDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 	else if( nIDEvent==TIMER_SEEK ) {
 		KillTimer(m_hWnd, TIMER_SEEK);
-		Seek();
+		m_playertime = m_seektime;
+		decoder::g_seek(&m_seektime);
+		updateTimebar();
 	}
 	else if( nIDEvent==TIMER_STEP ) {
 		if( g_playstat==PLAY_PAUSE && GetCapture() == GetDlgItem(m_hWnd, IDC_STEP) ) {
@@ -4800,28 +4792,28 @@ void DvrclientDlg::OnTimer(UINT_PTR nIDEvent)
 
 int  DvrclientDlg::getLocation(float &lat, float &lng)
 {
-	string gpslocstr;
-	if (m_screen[m_focus] && m_screen[m_focus]->m_decoder && m_screen[m_focus]->m_decoder->getlocation(gpslocstr.strsize(500), 500) > 0) {
-		int l = strlen(gpslocstr);
-		if (l > 32) {
-			float lati, longi, kmh, direction;
-			char  latiD, longiD, cdirection;
-			sscanf(((char *)gpslocstr) + 12, "%9f%c%10f%c%f%c%6f",
-				&lati, &latiD, &longi, &longiD, &kmh, &cdirection, &direction);
-			if (lati > 0.001 && longi > 0.001) {
-				if (latiD == 'S') {
-					lati = -lati;
-				}
-				if (longiD == 'W') {
-					longi = -longi;
-				}
-				lat = lati;
-				lng = longi;
-				return 1;
-			}
-		}
-	}
-	return 0;
+    string gpslocstr;
+    if (m_screen[m_focus] && m_screen[m_focus]->m_decoder && m_screen[m_focus]->m_decoder->getlocation(gpslocstr.strsize(500), 500) > 0) {
+        int l = strlen(gpslocstr);
+        if (l > 32) {
+            float lati, longi, kmh, direction;
+            char  latiD, longiD, cdirection;
+            sscanf(((char *)gpslocstr) + 12, "%9f%c%10f%c%f%c%6f",
+                &lati, &latiD, &longi, &longiD, &kmh, &cdirection, &direction);
+            if (lati > 0.001 && longi > 0.001) {
+                if (latiD == 'S') {
+                    lati = -lati;
+                }
+                if (longiD == 'W') {
+                    longi = -longi;
+                }
+                lat = lati;
+                lng = longi;
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 
@@ -4830,53 +4822,53 @@ static WebWindow * _mapwin = NULL;
 
 void DvrclientDlg::DisplayMap()
 {
-	// open the new map window
-	if (_mapwin && _mapwin->getHWND() == NULL) {
-		delete _mapwin;
-		_mapwin = NULL;
-	}
+    // open the new map window
+    if (_mapwin && _mapwin->getHWND() == NULL) {
+        delete _mapwin;
+        _mapwin = NULL;
+    }
 
-	if (_mapwin == NULL) {
-		string url;
-		string exefilename;
+    if (_mapwin == NULL) {
+        string url;
+        string exefilename;
 
-		GetModuleFileName(AppInst(), exefilename.tcssize(512), 512);
+        GetModuleFileName(AppInst(), exefilename.tcssize(512), 512);
 
-		if (reg_read("map") == 1) {
-			url.printf("res://%s/MAPBING_HTML", (char *)exefilename);
-		}
-		else {
-			url.printf("res://%s/MAPGOOGLE_HTML", (char *)exefilename);
-		}
+        if (reg_read("map") == 1) {
+            url.printf("res://%s/MAPBING_HTML", (char *)exefilename);
+        }
+        else {
+            url.printf("res://%s/MAPGOOGLE_HTML", (char *)exefilename);
+        }
 
-		// use these url for testing
-		// url = "file:///D:\\proj\\DVR\\DVRCLIENT_V3\\Viewers\\common\\map.html";
-		// url = "http://html5test.com/";
+        // use these url for testing
+        // url = "file:///D:\\proj\\DVR\\DVRCLIENT_V3\\Viewers\\common\\map.html";
+        // url = "http://html5test.com/";
 
-		_mapwin = new WebWindow();
+        _mapwin = new WebWindow();
 
-		float lat, lng;
-		if (getLocation( lat, lng)) {
-			_mapwin->setInitloc(lat, lng);
-		}
+        float lat, lng;
+        if (getLocation( lat, lng)) {
+            _mapwin->setInitloc(lat, lng);
+        }
 
-		_mapwin->DisplayPage(url);
-	}
-	else {
-		_mapwin->show();
-	}
+        _mapwin->DisplayPage(url);
+    }
+    else {
+        _mapwin->show();
+    }
 
-	::SetTimer(m_hWnd, TIMER_UPDATEMAP, 100, NULL);		// start map update timer
-	m_lati = m_longi = 0.0;        // reset saved location, so map would update next time
+    ::SetTimer(m_hWnd, TIMER_UPDATEMAP, 100, NULL);		// start map update timer
+    m_lati = m_longi = 0.0;        // reset saved location, so map would update next time
 
 }
 
 void DvrclientDlg::ReleaseMap() 
 {
-	if (_mapwin) {
-		delete _mapwin;
-		_mapwin = NULL;
-	}
+    if (_mapwin) {
+        delete _mapwin;
+        _mapwin = NULL;
+    }
 }
 
 void DvrclientDlg::UpdateMap()
@@ -5139,7 +5131,7 @@ void DvrclientDlg::UpdateMap_x()
 								if (hr == S_OK && doc != NULL) {
 									BSTR rdy = NULL;
 									hr = doc->get_readyState(&rdy);
-									if (rdy && string::compare(rdy, L"complete") == 0) {
+                                    if (rdy && string::compare(rdy, L"complete") == 0) {
 										VARIANT var;
 										string script;
 										var.vt = VT_EMPTY;
@@ -5190,9 +5182,6 @@ void DvrclientDlg::UpdateMap_x()
 	}
 #endif
 }
-
-
-
 
 void DvrclientDlg::OnCbnSelchangeComboTimerange()
 {
@@ -5351,8 +5340,7 @@ void DvrclientDlg::OnHScroll(UINT nSBCode, UINT nPos, HANDLE hScrollBar)
 {
 	if( hScrollBar == m_slider.getHWND() ) {
         if( nSBCode != TB_THUMBPOSITION && nSBCode != TB_ENDTRACK ) {
-            SetTimer(m_hWnd, TIMER_SEEK, 20, NULL );
-            SetTimer(m_hWnd, TIMER_UPDATE, 2000, NULL );    // delay TIMER_UPDATE
+			Seek();
         }
     }
     else if( hScrollBar == m_volume.getHWND() ) {
@@ -5368,7 +5356,7 @@ void DvrclientDlg::OnBnClickedCapture()
 {
     string capturefilename ;
     string deffilename ;
-    string tmpdir(getenv("TEMP"));
+    string tmpdir(getenv("TEMP"));	
 	struct dvrtime dvrt ;
     dvrt = m_playertime ;       // default time
 	decoder * dec = NULL ;
@@ -5432,9 +5420,9 @@ void DvrclientDlg::OnBnClickedCapture()
          ((Cliplist *)m_cliplist)->getClipTime( &dvrt );
     }
 	else if(m_screen[m_focus] && m_screen[m_focus]->m_decoder) {
-		res = m_screen[m_focus]->capture(capturefilename);
+        res = m_screen[m_focus]->capture(capturefilename);
         m_screen[m_focus]->m_decoder->getcurrenttime( &dvrt );
-	}
+    }
 	if( res>=0 ) {
 /*	
         CCapture capdlg ;
@@ -5511,8 +5499,8 @@ void DvrclientDlg::OnBnClickedCapture()
             m_screen[i]->m_decoder->getcurrenttime( &dvrt );
 			string capturefile;
             sprintf(capturefile.strsize(MAX_PATH),"%s\\dvrcap%d.bmp", tmp, i + 1 );
-			res=m_screen[i]->capture(capturefile);
-
+            res=m_screen[i]->capture(capturefile);
+			
 			if (res >= 0) {
 				capdlg.m_picturename[j]= capturefile ;
 				capdlg.m_cameraname[j] = m_screen[i]->m_channelinfo.cameraname ;
@@ -5748,7 +5736,7 @@ BOOL DvrclientDlg::OnDeviceChange( UINT nEventType, DWORD dwData )
 void DvrclientDlg::OnPaint()
 {
     PAINTSTRUCT ps;
-    HDC hdc;
+	HDC hdc;
 	int i;
     int w,h;
     Bitmap * timg=NULL ;
@@ -5791,8 +5779,9 @@ void DvrclientDlg::OnPaint()
 		// app logo
 		timg = loadbitmap( _T("APPNAME")) ;
 		if( timg ) {
+			w = timg->GetWidth() * m_dpi / 96 ;
 			h = timg->GetHeight() * m_dpi / 96 ;
-			g->DrawImage( timg, m_panelrect.left, m_panelrect.top, m_panelrect.right-m_panelrect.left, h) ;
+			g->DrawImage( timg, m_panelrect.left, m_panelrect.top, w, h) ;
 			delete timg;
 			timg=NULL ;
 		}
@@ -5838,12 +5827,13 @@ void DvrclientDlg::OnPaint()
 #endif
 
 //    g->ExcludeClip(Rect(m_screct.left, m_screct.top, m_screct.right-m_screct.left, m_screct.bottom-m_screct.top ));
-//		for( i=0; i<m_screennum; i++) {
-//			g->ExcludeClip(Rect(m_screenrect[i].left, m_screenrect[i].top, m_screenrect[i].right-m_screenrect[i].left, m_screenrect[i].bottom-m_screenrect[i].top ));
-//		}
+
+		for( i=0; i<m_screennum; i++) {
+			g->ExcludeClip(Rect(m_screenrect[i].left, m_screenrect[i].top, m_screenrect[i].right-m_screenrect[i].left, m_screenrect[i].bottom-m_screenrect[i].top ));
+		}
 		g->FillRectangle(bkbrush, (INT)m_playerrect.left, m_playerrect.top, m_playerrect.right-m_playerrect.left, m_playerrect.bottom-m_playerrect.top ) ;
 		delete bkbrush ;
-//		g->ResetClip();
+		g->ResetClip();
 
 		if( timg ) {
 			delete timg ;
@@ -5900,24 +5890,13 @@ void DvrclientDlg::OnPaint()
 			timg = loadbitmap( _T("VOLUME_3") );
 		}
 
-		RECT rc;
-		GetClientRect(m_hWnd, &rc);
-
 		// erase bottom bar background    
-
-		Bitmap* tbk = loadbitmap(_T("PLAY_BK"));
-		if (tbk) {
-			Brush* bkbrush = new TextureBrush(tbk);
-			g->DrawImage(tbk, m_bottombar.left, m_bottombar.top, m_bottombar.right - m_bottombar.left + 300, m_bottombar.bottom - m_bottombar.top);
-			// g->FillRectangle(bkbrush, m_bottombar.left, m_bottombar.top, m_bottombar.right - m_bottombar.left , m_bottombar.bottom - m_bottombar.top);
-			delete bkbrush;
-			delete tbk;
-		}
-		else if( m_bkbmp ) {
+		if( m_bkbmp ) {
 			//g->DrawImage( m_bkbmp, m_bottombar.left, m_bottombar.top, 0, 0, m_bottombar.right-m_bottombar.left, m_bottombar.bottom-m_bottombar.top, UnitPixel );
 			//g->DrawImage( m_bkbmp, (INT)rect.left, (INT)rect.top, (INT)(rect.left-m_bottombar.left), (INT)(rect.top-m_bottombar.top), (INT)(rect.right-rect.left), (INT)(rect.bottom-rect.top), UnitPixel );
-			g->DrawImage( m_bkbmp, m_bottombar.left, m_bottombar.top, m_bottombar.right-m_bottombar.left+300, m_bottombar.bottom-m_bottombar.top );
-			//g->DrawImage( m_bkbmp, (INT)m_bottombar.left, (INT)m_bottombar.top );
+			// g->DrawImage( m_bkbmp, m_bottombar.left, m_bottombar.top, m_bottombar.right-m_bottombar.left, m_bottombar.bottom-m_bottombar.top );
+			// g->DrawImage( m_bkbmp, m_bottombar.left, m_bottombar.top );
+			g->DrawImage( m_bkbmp, m_bottombar.left, m_bottombar.top, m_bottombar.right-m_bottombar.left, m_bottombar.bottom-m_bottombar.top );
 		}
 		else {
 			color.SetFromCOLORREF( BOTTOMBARCOLOR );
@@ -5994,17 +5973,17 @@ void DvrclientDlg::OnPaint()
 #ifdef SPARTAN_APP
 void DvrclientDlg::OnBnClickedScreen1()
 {
-	setScreenMode(0);
+	    setScreenMode(0);
 }
 
 void DvrclientDlg::OnBnClickedScreen2()
 {
-	setScreenMode(1);
+		setScreenMode(1);
 }
 
 void DvrclientDlg::OnBnClickedScreen4()
 {
-	setScreenMode(3);
+		setScreenMode(3);
 }
 #endif
 
@@ -6125,7 +6104,7 @@ void  DvrclientDlg::SnapShot( void * param )
 			img=NULL ;
 			if( m_screen[i]!=NULL && m_screen[i]->m_decoder ) {
                 sprintf(tbuf.strsize(MAX_PATH), "%s\\dvrcap_s.bmp", tmp );
-				res=m_screen[i]->capture( tbuf );
+                res=m_screen[i]->capture( tbuf );
 				if( res>=0 ) {
 					img = Bitmap::FromFile(tbuf);
 					if( img ) {
@@ -7108,8 +7087,7 @@ void DvrclientDlg::OnBnClickedBRange( int id )
 	}
 
 	::SendDlgItemMessage(m_hWnd, IDC_COMBO_TIMERANGE, CB_SETCURSEL, (WPARAM)dayrange, (LPARAM)0);
-	m_tbarupdate = 1 ;
-    SetTimer(m_hWnd, TIMER_UPDATE, 10, NULL);
+	updateTimebar();
 }
 */
 
@@ -7150,7 +7128,7 @@ int DvrclientDlg::GetTimeRange()
 void DvrclientDlg::SetTimeRange( int tirange )
 {
 	::SendDlgItemMessage(m_hWnd, IDC_COMBO_TIMERANGE, CB_SETCURSEL, (WPARAM)tirange, (LPARAM)0);
-	CtrlSet();
+	CtrlSet();  
 	updateTimebar();
 }
 
@@ -7181,10 +7159,10 @@ int AboutDlg::OnInitDialog()
 	int   release_minor = 101;
 	LPVOID lpBuffer ;
 	UINT uLen ;
-	string appname("DvrViewer");
-	string version("Version 3");
-	string copyright("Copyright (C) 2012");
-	string company("Toronto MicroElectronics Inc.");
+    string appname("DvrViewer");
+    string version("Version 3");
+    string copyright("Copyright (C) 2012");
+    string company("Toronto MicroElectronics Inc.");
 
 #ifdef   APPNAME
     appname = APPNAME ;
@@ -7247,7 +7225,7 @@ int AboutDlg::OnInitDialog()
 
 	str.printf( "\\StringFileInfo\\%04x%04x\\OriginalFilename", wlang, wcodepage );
     if( VerQueryValue(pfvi, str, &lpBuffer, &uLen)) {
-		string filename ((LPCTSTR)lpBuffer) ;
+        string filename ((LPCTSTR)lpBuffer) ;
 		str.printf( "%s : %d, %d, %d, %d", (LPCSTR)filename, libversion[0], libversion[1], libversion[2], libversion[3] );
 		SendMessage( GetDlgItem(m_hWnd, IDC_LISTLIBRARY), LB_ADDSTRING, 0, (LPARAM)(LPCTSTR)str ) ;
     }
@@ -7345,23 +7323,23 @@ int AboutDlg::OnInitDialog()
 
 int DvrclientDlg::DriveByReport()
 {
-	DlgDriveByReport drivebydialog(m_hWnd);
-	drivebydialog.DoModal();
-	return 0;
+    DlgDriveByReport drivebydialog(m_hWnd);
+    drivebydialog.DoModal();
+    return 0;
 }
 
 
 void DvrclientDlg::cleanDriveByFiles()
 {
-	WaitCursor wc;
+    WaitCursor wc;
 
-	string tmpfolder;
-	getTempFolder(tmpfolder);
-	dirfind dbdir(tmpfolder, "DB*");
-	while (dbdir.findfile())
-	{
-		unlink(dbdir.filepath());
-	}
+    string tmpfolder;
+    getTempFolder(tmpfolder);
+    dirfind dbdir(tmpfolder, "DB*");
+    while (dbdir.findfile())
+    {
+        unlink(dbdir.filepath());
+    }
 }
 
 #endif

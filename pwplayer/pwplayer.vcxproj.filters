@@ -118,9 +118,6 @@
     <ClCompile Include="..\common\bsliderbar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\cJSON.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\SimpleBrowser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

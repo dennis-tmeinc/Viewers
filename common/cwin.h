@@ -72,7 +72,6 @@ private:
 
 #ifdef USE_GDIPLUS
 			GdiplusStartupInput gdiplusStartupInput;
-
 			GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 #endif
 

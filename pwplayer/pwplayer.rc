@@ -40,8 +40,8 @@ IDR_MAINFRAME           ICON                    "res/pwplayer.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,18,413
- PRODUCTVERSION 1,1,18,413
+ FILEVERSION 1,1,20,422
+ PRODUCTVERSION 1,1,20,422
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x21L
@@ -57,12 +57,12 @@ BEGIN
         BLOCK "000904b0"
         BEGIN
             VALUE "CompanyName", "Toronto MicroElectronics Inc."
-            VALUE "FileVersion", "1.1.18.413"
+            VALUE "FileVersion", "1.1.20.422"
             VALUE "InternalName", "PWPLAYER"
             VALUE "LegalCopyright", "Copyright (C) 2011"
             VALUE "OriginalFilename", "PWPLAYER.EXE"
             VALUE "ProductName", "PWPLAYER"
-            VALUE "ProductVersion", "1.1.18.413"
+            VALUE "ProductVersion", "1.1.20.422"
             VALUE "SpecialBuild", "PWPLAYER"
         END
     END
@@ -657,7 +657,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "res/pwplayer.rc2"  // non-Microsoft Visual C++ edited resources
+#include "res\pwplayer.rc2"  // non-Microsoft Visual C++ edited resources
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

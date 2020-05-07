@@ -673,10 +673,6 @@ int decoder::play()
 	int res = DVR_ERROR ;
 	char * password ;
 	if( m_hplayer!=NULL && library[m_library]->play ) {
-		// ply266 would hang when play videos from bodycam,
-		// Try to give ply266 some time to complete backgound task before play(), looks like it works.
-		// (by dennis@tme 2019-01-10)
-		Sleep(20);
 		res = library[m_library]->play(m_hplayer);
 		if( res == DVR_ERROR_FILEPASSWORD ) {			// need to provide password
 			// try old password
@@ -844,7 +840,6 @@ int decoder::seek(struct dvrtime * t)
 	char * password;
 	if (m_hplayer != NULL && library[m_library]->seek) {
 		res = library[m_library]->seek(m_hplayer, t);
-		Sleep(2);
 		if (res == DVR_ERROR_FILEPASSWORD) {			// need to provide password
 			// try old password
 			for (i = 0; i < DECODER_PASSWORD_NUMBER; i++) {
@@ -1389,11 +1384,11 @@ int decoder::attachview(int channel, HWND hwnd, int view)
 int decoder::g_close()
 {
 	int i;
-	g_playstat = PLAY_STOP;
 	for (i = 0; i < MAXDECODER; i++) {
 		g_decoder[i].detach();
 		g_decoder[i].close();
 	}
+	g_playstat = PLAY_STOP;
 	g_minitrack_used = 0;     //assume minitrack interface also closed
 	return 0;
 }
@@ -1401,18 +1396,27 @@ int decoder::g_close()
 int decoder::g_play()
 {
 	int i; 
-	g_playstat = PLAY_PLAY ;
-	for(i=0; i<MAXDECODER; i++ ) {
-		g_decoder[i].play();
+	// ply266 would hang when play videos from bodycam,
+	// Try to give ply266 some time to complete backgound task before play(), looks like it works.
+	// (by dennis@tme 2019-01-10)
+	Sleep(100);
+	if (g_playstat != PLAY_PLAY) {
+		for (i = 0; i < MAXDECODER; i++) {
+			g_decoder[i].play();
+		}
+		g_playstat = PLAY_PLAY;
 	}
 	return 0 ;
 }
 
 int decoder::g_pause()
 {
-	int i; 
-	for(i=0; i<MAXDECODER; i++ ) {
-		g_decoder[i].pause();
+	if (g_playstat > PLAY_PAUSE) {
+		int i;
+		for (i = 0; i < MAXDECODER; i++) {
+			g_decoder[i].pause();
+		}
+		g_playstat = PLAY_PAUSE;
 	}
 	return 0 ;
 }
@@ -1423,6 +1427,7 @@ int decoder::g_stop()
 	for(i=0; i<MAXDECODER; i++ ) {
 		g_decoder[i].stop();
 	}
+	g_playstat = PLAY_STOP;
 	return 0 ;
 }
 
@@ -1432,6 +1437,7 @@ int decoder::g_fastforward(int speed )
 	for(i=0; i<MAXDECODER; i++ ) {
 		g_decoder[i].fastforward(speed);
 	}
+	g_playstat = PLAY_PLAY+speed;
 	return 0 ;
 }
 
@@ -1441,6 +1447,7 @@ int decoder::g_slowforward(int speed )
 	for(i=0; i<MAXDECODER; i++ ) {
 		g_decoder[i].slowforward(speed);
 	}
+	g_playstat = PLAY_PLAY-speed;
 	return 0 ;
 }
 
@@ -1450,6 +1457,7 @@ int decoder::g_oneframeforward()
 	for(i=0; i<MAXDECODER; i++ ) {
 		g_decoder[i].oneframeforward();
 	}
+	g_playstat = PLAY_PAUSE;
 	return 0 ;
 }
 
@@ -1595,6 +1603,14 @@ int g_minitrack_used ;
 
 // DVRViewer function interface for minitrack service
 
+//  Close current player;
+int minitrack_close()
+{
+	g_maindlg->ClosePlayer();				// close player screens
+	decoder::g_close();					// to make sure all decoder closed
+	return 0;
+}
+
 //  Open dvr media base on servername ;
 int minitrack_openserver_s( char * servername )
 {
@@ -1630,6 +1646,8 @@ int minitrack_openserver( char * servername )
 		decoder::g_play();
 		return 0 ;
 	}
+	minitrack_close();
+	Sleep(300);
 	g_decoder[0].opendvr(servername);
 	if (g_decoder[0].isopen()) {
 		g_maindlg->SetPlaymode(CLIENTMODE_PLAYBACK);
@@ -1651,9 +1669,8 @@ int minitrack_openserver( char * servername )
 int minitrack_openremote( char * remoteserver )
 {
 //	if( g_minitrack_up ) {
-		g_maindlg->ClosePlayer() ;				// close player screens
-		decoder::g_close();					// to make sure all decoder closed
-		string remote ;
+	minitrack_close();
+	string remote ;
 		remote = remoteserver ;
 		g_maindlg->PlayRemote( remote, PLY_PLAYBACK );
 		return 0;
@@ -1665,8 +1682,7 @@ int minitrack_openremote( char * remoteserver )
 int minitrack_openlive( char * remoteserver )
 {
 //	if( g_minitrack_up ) {
-		g_maindlg->ClosePlayer() ;				// close player screens
-		decoder::g_close();					// to make sure all decoder closed
+	minitrack_close();
 		string remote ;
 		remote = remoteserver ;
 		g_maindlg->PlayRemote( remote, PLY_PREVIEW );
@@ -1679,8 +1695,7 @@ int minitrack_openlive( char * remoteserver )
 int minitrack_openharddrive( char * dirname )
 {
 //	if( g_minitrack_up ) {
-		g_maindlg->ClosePlayer() ;				// close player screens
-		decoder::g_close();					// to make sure all decoder closed
+	minitrack_close();
 		g_decoder[0].openharddrive( dirname );
 		g_maindlg->SetPlaymode( CLIENTMODE_PLAYBACK );
 		g_maindlg->StartPlayer();				// start player
@@ -1693,21 +1708,9 @@ int minitrack_openharddrive( char * dirname )
 int minitrack_openfile( char * dvrfilename )
 {
 //	if( g_minitrack_up ) {
-		g_maindlg->ClosePlayer() ;				// close player screens
-		decoder::g_close();					// to make sure all decoder closed
+	minitrack_close();
 		string fname(dvrfilename) ;
 		g_maindlg->Playfile(fname) ;
-		return 0;
-//	}
-//	return DVR_ERROR ;
-}
-
-//  Close current player;
-int minitrack_close()
-{
-//	if( g_minitrack_up ) {
-		g_maindlg->ClosePlayer() ;				// close player screens
-		decoder::g_close();					// to make sure all decoder closed
 		return 0;
 //	}
 //	return DVR_ERROR ;

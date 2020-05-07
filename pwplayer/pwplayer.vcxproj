@@ -86,7 +86,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -174,14 +174,16 @@
     <ClCompile Include="..\common\CallTmeDlg.cpp" />
     <ClCompile Include="..\common\Capture4.cpp" />
     <ClCompile Include="..\common\ChangePassword.cpp" />
-    <ClCompile Include="..\common\cJSON.cpp" />
     <ClCompile Include="..\common\cliplist.cpp" />
     <ClCompile Include="..\common\CopyProgress.cpp" />
     <ClCompile Include="..\common\crypt.cpp" />
     <ClCompile Include="..\common\decoder.cpp" />
     <ClCompile Include="..\common\DropTarget.cpp" />
     <ClCompile Include="..\common\dvrclientDlg.cpp" />
-    <ClCompile Include="..\common\json.cpp" />
+    <ClCompile Include="..\common\json.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\common\md5.cpp" />
     <ClCompile Include="..\common\RemoteIpDlg.cpp" />
     <ClCompile Include="..\common\Screen.cpp" />

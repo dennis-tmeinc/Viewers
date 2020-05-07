@@ -86,7 +86,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,12 +160,48 @@
     <None Include="small.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\bitmapbutton.h" />
+    <ClInclude Include="..\common\bsliderbar.h" />
+    <ClInclude Include="..\common\CallTmeDlg.h" />
+    <ClInclude Include="..\common\Capture.h" />
+    <ClInclude Include="..\common\Capture4.h" />
     <ClInclude Include="..\common\cdir.h" />
+    <ClInclude Include="..\common\ChangePassword.h" />
+    <ClInclude Include="..\common\cJSON.h" />
     <ClInclude Include="..\common\cliplist.h" />
+    <ClInclude Include="..\common\CopyProgress.h" />
+    <ClInclude Include="..\common\Covert.h" />
+    <ClInclude Include="..\common\crypt.h" />
+    <ClInclude Include="..\common\cstr.h" />
     <ClInclude Include="..\common\cwin.h" />
+    <ClInclude Include="..\common\decoder.h" />
+    <ClInclude Include="..\common\DriveByReport.h" />
+    <ClInclude Include="..\common\DropTarget.h" />
+    <ClInclude Include="..\common\dvrclientDlg.h" />
     <ClInclude Include="..\common\json.h" />
+    <ClInclude Include="..\common\map.h" />
+    <ClInclude Include="..\common\map.h.bak.h" />
+    <ClInclude Include="..\common\RemoteIpDlg.h" />
+    <ClInclude Include="..\common\SaveClipDialog.h" />
+    <ClInclude Include="..\common\SaveClipDialog2.h" />
+    <ClInclude Include="..\common\Screen.h" />
+    <ClInclude Include="..\common\SelectCamera.h" />
+    <ClInclude Include="..\common\SelectDvr.h" />
+    <ClInclude Include="..\common\SimpleWeb.h" />
+    <ClInclude Include="..\common\sliderbar.h" />
     <ClInclude Include="..\common\SubViewScreen.h" />
+    <ClInclude Include="..\common\tagevent.h" />
+    <ClInclude Include="..\common\tvsid.h" />
+    <ClInclude Include="..\common\UsbPassword.h" />
+    <ClInclude Include="..\common\User.h" />
+    <ClInclude Include="..\common\UserNew.h" />
+    <ClInclude Include="..\common\UserPass.h" />
     <ClInclude Include="..\common\util.h" />
+    <ClInclude Include="..\common\VideoPassword.h" />
+    <ClInclude Include="..\common\volume.h" />
+    <ClInclude Include="..\common\Volumebar.h" />
+    <ClInclude Include="..\common\VolumePass.h" />
+    <ClInclude Include="..\common\WebWin.h" />
     <ClInclude Include="dvrclient.h" />
     <ClInclude Include="PWViewer.h" />
     <ClInclude Include="Resource.h" />
@@ -177,7 +213,6 @@
     <ClCompile Include="..\common\CallTmeDlg.cpp" />
     <ClCompile Include="..\common\Capture4.cpp" />
     <ClCompile Include="..\common\ChangePassword.cpp" />
-    <ClCompile Include="..\common\cJSON.cpp" />
     <ClCompile Include="..\common\cliplist.cpp" />
     <ClCompile Include="..\common\CopyProgress.cpp" />
     <ClCompile Include="..\common\crypt.cpp" />

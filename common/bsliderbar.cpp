@@ -21,9 +21,7 @@ int BSliderBar::OnSetPos(int x)
 	{
 		SetPos(npos);
 		m_touchdown = 1;
-
-		SetTimer(m_hparent, TIMER_SEEK, 30, NULL);	 // seek player
-		SetTimer(m_hparent, TIMER_UPDATE, 2000, NULL); // delay TIMER_UPDATE
+		g_maindlg->Seek(npos);
 	}
 
 	return 0;
