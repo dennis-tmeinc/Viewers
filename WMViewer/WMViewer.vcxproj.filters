@@ -65,9 +65,6 @@
     <ClCompile Include="..\common\ChangePassword.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\cJSON.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\cliplist.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -112,6 +109,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="WMViewer.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\dvrclient.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

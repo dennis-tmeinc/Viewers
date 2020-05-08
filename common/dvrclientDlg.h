@@ -154,7 +154,7 @@ protected:
 
 public:
 
-    void SetZoom();
+    void ToggleFullScreen();
     int  IsZoom(){ return m_zoom; } 
 	void CtrlSet();						// set button status (gray out...)
 	void SetLayout();					// setup bottons layout on system up

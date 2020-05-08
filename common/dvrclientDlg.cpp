@@ -1000,29 +1000,30 @@ void DvrclientDlg::SetLayout()
     }
 
 	// initialize bottom controls, set bottom bar height, and line up buttons
-    m_bottombar.top = 0 ;
-    m_bottombar.left = 0 ;
-    m_bottombar.right = 1 ;
-    m_bottombar.bottom = 1 ;        
-	x=0 ;
-	y=100 ;
-	w=0 ;
+	m_bottombar.top = 0;
+	m_bottombar.left = 0;
+	m_bottombar.right = 1;
+	m_bottombar.bottom = 1;
+	x = 0;
+	y = 100;
+	w = 0;
+	h = 100;
 	for(i=0;btbar_ctls[i].id>0;i++) {
-		if(btbar_ctls[i].xadj>-900) {
-			x+=w+btbar_ctls[i].xadj ;
-			w=0;
-			if( btbar_ctls[i].imgname ) {
-				img = loadbitmap( btbar_ctls[i].imgname );
-				if( img ) {
-                    w = img->GetWidth() * m_dpi / 96;
-                    h = img->GetHeight() * m_dpi / 96;
-					delete img ;
+		if (btbar_ctls[i].xadj > -900) {
+			x += w + btbar_ctls[i].xadj;
+			w = 0;
+			if (btbar_ctls[i].imgname) {
+				img = loadbitmap(btbar_ctls[i].imgname);
+				if (img) {
+					w = img->GetWidth() * m_dpi / 96;
+					h = img->GetHeight() * m_dpi / 96;
+					delete img;
 				}
 			}
-			if( w==0 ) {
-				::GetClientRect(  ::GetDlgItem(m_hWnd, btbar_ctls[i].id), &rect );
-                w = rect.right ;
-				h = rect.bottom ;
+			if (w == 0) {
+				::GetClientRect(::GetDlgItem(m_hWnd, btbar_ctls[i].id), &rect);
+				w = rect.right;
+				h = rect.bottom;
 			}
 		}
         
@@ -1038,19 +1039,20 @@ void DvrclientDlg::SetLayout()
 #ifdef APP_PW_TABLET
 	m_bottombar.bottom=120 ;
 #endif
+	
+	GetWindowRect(m_hWnd, &rect);
+	m_minysize = (rect.bottom - rect.top);
+	m_minxsize = (rect.right - rect.left);
 
-	::GetWindowRect(m_hWnd, &rect);
-	m_minxsize = rect.right - rect.left;
+	// m_minysize = rect.bottom - rect.top - 30;
 
-	if (m_minxsize < (x + w + 180))
-	{
-		m_minxsize = x + w + 180;
-	}
+	// ::GetWindowRect(m_hWnd, &rect);
+	// m_minxsize = rect.right - rect.left;
 
-	m_minysize = rect.bottom - rect.top - 30;
-	::MoveWindow( m_hWnd,
-        rect.left, rect.top,
-        m_minxsize+120, m_minysize, TRUE );
+	// m_minysize = rect.bottom - rect.top - 30;
+	//::MoveWindow( m_hWnd,
+    //    rect.left, rect.top,
+    //    m_minxsize+120, m_minysize, TRUE );
 
 #ifdef APP_PWPLAYER
     m_companylinkrect.left = 0 ;
@@ -1185,6 +1187,9 @@ void DvrclientDlg::OnSize(UINT nType, int cx, int cy)
 	int  off_x, off_y ;
 	RECT rect ;
     int  sliderheight ;
+
+	if (m_zoom == -1) 
+		return;
 
     if( cx==0 ) {
         ::GetClientRect( m_hWnd, &rect);
@@ -1443,7 +1448,8 @@ void DvrclientDlg::OnSize(UINT nType, int cx, int cy)
 #endif      // SPARTAN_APP
 
 	// adjust playerrect 
-	m_playerrect.bottom = m_bottombar.top - sliderheight ;	// adjust later
+	if( !m_zoom )
+		m_playerrect.bottom = m_bottombar.top - sliderheight ;	// adjust later
 
 	// move slider bar
 #ifdef APP_PW_TABLET
@@ -2197,15 +2203,8 @@ void DvrclientDlg::FocusPlayer( Screen * screen)
 int DvrclientDlg::OnCancel()
 {
     if( m_zoom ) {
-        SetWindowLong(m_hWnd, GWL_STYLE, m_zoom );
-        m_zoom = 0 ;
-        ShowWindow(m_hWnd, SW_NORMAL);
-        SetWindowPos(m_hWnd, HWND_TOP, 
-            m_zoomrect.left, m_zoomrect.top, 
-            m_zoomrect.right-m_zoomrect.left, m_zoomrect.bottom - m_zoomrect.top,
-            0);
-        OnSize(0, 0, 0);
-    }
+		ToggleFullScreen();
+	}
 	return TRUE ;
 }
 
@@ -2221,17 +2220,69 @@ void DvrclientDlg::OnActive( int active )
     }
 }
 
-void DvrclientDlg::SetZoom()
+// taggle fullscreen
+void DvrclientDlg::ToggleFullScreen()
 {
+	if (m_zoom == 0) {
+		m_zoom = GetWindowLong(m_hWnd, GWL_STYLE);
+		if (m_zoom & WS_MAXIMIZE) {
+			SetWindowLong(m_hWnd, GWL_STYLE, WS_POPUP|WS_MAXIMIZE);	//not visible, so showwindow would do the work!!!
+		}
+		else {
+			SetWindowLong(m_hWnd, GWL_STYLE, WS_POPUP);
+		}
+		ShowWindowAsync(m_hWnd, SW_MAXIMIZE);
+	}
+	else {
+		if (m_zoom & WS_MAXIMIZE) {
+			SetWindowLong(m_hWnd, GWL_STYLE, m_zoom&(~WS_VISIBLE));		// set not visible, so showwindow would redraw the window with saved style
+			m_zoom = 0;
+			ShowWindowAsync(m_hWnd, SW_MAXIMIZE);
+		}
+		else {
+			SetWindowLong(m_hWnd, GWL_STYLE, m_zoom | WS_MAXIMIZE);		// keep MAXIMIZE, so showwindow would restore to saved pos
+			m_zoom = 0;
+			ShowWindowAsync(m_hWnd, SW_NORMAL);
+		}
+	}
+}
+
+/*
+void DvrclientDlg::ToggleFullScreen()
+{
+	long wstyle;
     if( m_zoom==0 ) {
-        GetWindowRect(m_hWnd, &m_zoomrect);
-        m_zoom = SetWindowLong(m_hWnd, GWL_STYLE, WS_POPUP );
-        ShowWindow(m_hWnd, SW_MAXIMIZE);
+		wstyle = GetWindowLong(m_hWnd, GWL_STYLE);
+		if (wstyle & WS_MAXIMIZE) {
+			m_zoom = -1;
+			ShowWindow(m_hWnd, SW_RESTORE);
+		}
+		m_zoom = wstyle;
+		GetWindowRect(m_hWnd, &m_zoomrect);		// save windows position before zoom
+        SetWindowLong(m_hWnd, GWL_STYLE, WS_POPUP);
+		ShowWindowAsync(m_hWnd, SW_MAXIMIZE);
     }
     else {
-        OnCancel();
-    }
+		if (m_zoom & WS_MAXIMIZE) {
+			SetWindowLong(m_hWnd, GWL_STYLE, m_zoom);
+			m_zoom = -1;
+			ShowWindow(m_hWnd, SW_RESTORE);
+			m_zoom = 0;
+			ShowWindowAsync(m_hWnd, SW_MAXIMIZE);
+		}
+		else {
+			SetWindowLong(m_hWnd, GWL_STYLE, m_zoom | WS_MAXIMIZE);
+			m_zoom = 0;
+			//SetWindowPos(m_hWnd, HWND_TOP,
+			//	m_zoomrect.left, m_zoomrect.top,
+			//	m_zoomrect.right - m_zoomrect.left, m_zoomrect.bottom - m_zoomrect.top,
+			//	0);
+			ShowWindowAsync(m_hWnd, SW_NORMAL);
+			//OnSize(0, 0, 0);
+		}
+	}
 }
+*/
 
 // adjust screen format base on m_screenmode
 void DvrclientDlg::SetScreenFormat()
@@ -3806,7 +3857,21 @@ BOOL DvrclientDlg::PreProcessMessage(MSG* pMsg)
 				res = 1;
 			}
 		}
-
+		else if ((int)pMsg->wParam == (int)'F') {		// Full Screen Toggle
+			ToggleFullScreen();
+			res = 1;
+		}
+		else if ((int)pMsg->wParam == (int)'C') {		// Full Screen Toggle
+			if (m_screen[m_focus]) {
+				if( m_screen[m_focus]->isattached() ) {
+					m_screen[m_focus]->suspend();
+				}
+				else {
+					m_screen[m_focus]->resume();
+				}
+				res = 1;
+			}
+		}
 	}
 	return res;
 }

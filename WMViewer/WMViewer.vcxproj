@@ -155,14 +155,16 @@
     <ClCompile Include="..\common\CallTmeDlg.cpp" />
     <ClCompile Include="..\common\Capture.cpp" />
     <ClCompile Include="..\common\ChangePassword.cpp" />
-    <ClCompile Include="..\common\cJSON.cpp" />
     <ClCompile Include="..\common\cliplist.cpp" />
     <ClCompile Include="..\common\CopyProgress.cpp" />
     <ClCompile Include="..\common\crypt.cpp" />
     <ClCompile Include="..\common\decoder.cpp" />
     <ClCompile Include="..\common\DropTarget.cpp" />
     <ClCompile Include="..\common\dvrclientDlg.cpp" />
-    <ClCompile Include="..\common\json.cpp" />
+    <ClCompile Include="..\common\json.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\common\RemoteIpDlg.cpp" />
     <ClCompile Include="..\common\Screen.cpp" />
     <ClCompile Include="..\common\SelectDvr.cpp" />
@@ -185,6 +187,7 @@
     <ResourceCompile Include="WMViewer.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\dvrclient.ico" />
     <Image Include="small.ico" />
     <Image Include="WMViewer.ico" />
   </ItemGroup>

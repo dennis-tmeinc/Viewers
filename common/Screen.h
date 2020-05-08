@@ -44,11 +44,12 @@ struct  AOI_point {
 	float x, y;
 };
 
-struct  AOI_polygon {
+class  AOI_polygon {
+public:
 	int points;
 	struct AOI_point poly[MAX_POLYGON_POINTS];
 	string name;
-public:
+
 	AOI_polygon() {
 		points = 0;
 	}

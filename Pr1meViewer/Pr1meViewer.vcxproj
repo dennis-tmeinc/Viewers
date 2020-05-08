@@ -106,7 +106,10 @@
     <ClCompile Include="..\common\decoder.cpp" />
     <ClCompile Include="..\common\DropTarget.cpp" />
     <ClCompile Include="..\common\dvrclientDlg.cpp" />
-    <ClCompile Include="..\common\json.cpp" />
+    <ClCompile Include="..\common\json.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\common\md5.cpp" />
     <ClCompile Include="..\common\RemoteIpDlg.cpp" />
     <ClCompile Include="..\common\Screen.cpp" />

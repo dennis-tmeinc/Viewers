@@ -1581,7 +1581,7 @@ LRESULT Screen::OnRButtonUp(UINT nFlags, int x, int y)
 		reg_save("screenmode", g_maindlg->getScreenMode());
 	}
 	else if (cmd == id_FULL_SCREEN) {
-		g_maindlg->SetZoom();
+		g_maindlg->ToggleFullScreen();
 	}
 	else if (cmd == id_STAND_SCREEN) {		// standard screen 4:3
 		g_ratiox = 4;

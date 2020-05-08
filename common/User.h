@@ -15,7 +15,9 @@ public:
 	int m_usertype ;
     int m_retry ;
 
-	LoginDlg( HWND hParent) {
+    LoginDlg( HWND hParent) {
+        m_usertype = 0;
+        m_retry = 3;
 		CreateDlg(IDD_DIALOG_LOGIN, hParent);
 	}
 
